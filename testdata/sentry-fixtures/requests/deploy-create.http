@@ -1,0 +1,12 @@
+POST /api/0/organizations/demo/releases/frontend%401.0.0/deploys/ HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token
+Content-Type: application/json
+
+{
+  "environment": "production",
+  "name": "frontend-production-2026-05-18",
+  "url": "https://example.com/deploys/frontend-production-2026-05-18",
+  "dateStarted": "2026-05-18T09:58:00Z",
+  "dateFinished": "2026-05-18T10:00:00Z"
+}

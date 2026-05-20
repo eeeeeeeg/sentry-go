@@ -1,0 +1,11 @@
+POST /api/0/organizations/demo/releases/ HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token
+Content-Type: application/json
+
+{
+  "version": "frontend@1.0.0",
+  "projects": ["web"],
+  "ref": "6ba09a7c53235ee8a8fa5ee4c1ca8ca886e7fdbb",
+  "url": "https://example.com/releases/frontend@1.0.0"
+}

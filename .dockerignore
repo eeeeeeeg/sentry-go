@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+
+ui/node_modules
+ui/dist
+ui/*.tsbuildinfo
+
+node_modules
+dist
+
+*.log
+*.tmp

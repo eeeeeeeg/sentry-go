@@ -1,0 +1,295 @@
+package ingest
+
+import (
+	"compress/gzip"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/nats-io/nats.go"
+
+	"sentry-lite/internal/config"
+	"sentry-lite/internal/project"
+	"sentry-lite/internal/quota"
+)
+
+type Handler struct {
+	cfg      config.Config
+	projects *project.Repository
+	limiter  *quota.Limiter
+	js       nats.JetStreamContext
+}
+
+type RawEventMessage struct {
+	MessageID      string                 `json:"message_id"`
+	ReceivedAt     time.Time              `json:"received_at"`
+	RemoteIP       string                 `json:"remote_ip"`
+	UserAgent      string                 `json:"user_agent"`
+	SDKName        string                 `json:"sdk_name,omitempty"`
+	SDKVersion     string                 `json:"sdk_version,omitempty"`
+	OrganizationID string                 `json:"organization_id"`
+	ProjectID      string                 `json:"project_id"`
+	ProjectRef     string                 `json:"project_ref"`
+	ProjectKeyID   string                 `json:"project_key_id"`
+	PublicKey      string                 `json:"public_key"`
+	EnvelopeItems  []EnvelopeItemMetadata `json:"envelope_items,omitempty"`
+	Payload        json.RawMessage        `json:"payload"`
+}
+
+type acceptedResponse struct {
+	ID     string `json:"id,omitempty"`
+	Status string `json:"status"`
+}
+
+func NewHandler(cfg config.Config, projects *project.Repository, limiter *quota.Limiter, js nats.JetStreamContext) *Handler {
+	return &Handler{
+		cfg:      cfg,
+		projects: projects,
+		limiter:  limiter,
+		js:       js,
+	}
+}
+
+func (h *Handler) Register(r chi.Router) {
+	r.Post("/api/{project_id}/envelope", h.HandleEnvelope)
+	r.Post("/api/{project_id}/envelope/", h.HandleEnvelope)
+	r.Post("/api/{project_id}/store", h.HandleEnvelope)
+	r.Post("/api/{project_id}/store/", h.HandleEnvelope)
+	r.Options("/api/{project_id}/envelope", h.HandlePreflight)
+	r.Options("/api/{project_id}/envelope/", h.HandlePreflight)
+	r.Options("/api/{project_id}/store", h.HandlePreflight)
+	r.Options("/api/{project_id}/store/", h.HandlePreflight)
+}
+
+func (h *Handler) HandlePreflight(w http.ResponseWriter, r *http.Request) {
+	writeIngestCORS(w)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
+	writeIngestCORS(w)
+
+	projectRef := strings.TrimSpace(chi.URLParam(r, "project_id"))
+	if projectRef == "" {
+		writeError(w, http.StatusBadRequest, "missing_project_id", "project_id is required")
+		return
+	}
+
+	publicKey, err := extractPublicKey(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid_dsn", err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	projectKey, err := h.projects.FindProjectKey(ctx, projectRef, publicKey)
+	if err != nil {
+		status, code := projectErrorStatus(err)
+		writeError(w, status, code, err.Error())
+		return
+	}
+
+	limit := projectKey.RateLimitPerMinute
+	if limit <= 0 {
+		limit = h.cfg.DefaultRateLimit
+	}
+	rateName := fmt.Sprintf("project:%s:key:%s:ip:%s", projectKey.ProjectID, projectKey.KeyID, clientIP(r))
+	rate, err := h.limiter.Allow(ctx, rateName, limit)
+	if err != nil {
+		slog.Error("rate limit check failed", "error", err, "project_id", projectKey.ProjectID)
+		writeError(w, http.StatusServiceUnavailable, "rate_limit_unavailable", "rate limit service unavailable")
+		return
+	}
+	writeRateHeaders(w, rate)
+	if !rate.Allowed {
+		writeSentryRateLimitHeaders(w, rate)
+		writeError(w, http.StatusTooManyRequests, "rate_limited", "event rate limit exceeded")
+		return
+	}
+
+	body, err := readLimitedRequestBody(r, h.cfg.MaxEnvelopeBytes)
+	if err != nil {
+		writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", err.Error())
+		return
+	}
+	decoded, err := decodeIngestPayload(body)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_payload", err.Error())
+		return
+	}
+	if !decoded.HasEvent {
+		writeJSON(w, http.StatusAccepted, acceptedResponse{
+			ID:     decoded.EventID,
+			Status: "accepted",
+		})
+		return
+	}
+
+	eventID := decoded.EventID
+	raw := RawEventMessage{
+		MessageID:      messageID(eventID, body),
+		ReceivedAt:     time.Now().UTC(),
+		RemoteIP:       clientIP(r),
+		UserAgent:      r.UserAgent(),
+		SDKName:        firstNonEmpty(decoded.SDKName, r.Header.Get("X-SDK-Name")),
+		SDKVersion:     firstNonEmpty(decoded.SDKVersion, r.Header.Get("X-SDK-Version")),
+		OrganizationID: projectKey.OrganizationID,
+		ProjectID:      projectKey.ProjectID,
+		ProjectRef:     projectRef,
+		ProjectKeyID:   projectKey.KeyID,
+		PublicKey:      projectKey.PublicKey,
+		EnvelopeItems:  decoded.Items,
+		Payload:        decoded.Payload,
+	}
+
+	rawBytes, err := json.Marshal(raw)
+	if err != nil {
+		slog.Error("marshal raw event", "error", err)
+		writeError(w, http.StatusInternalServerError, "marshal_failed", "failed to prepare event")
+		return
+	}
+
+	msg := nats.NewMsg(h.cfg.RawEventSubject)
+	msg.Data = rawBytes
+	msg.Header.Set("content-type", "application/json")
+	msg.Header.Set("project-id", projectKey.ProjectID)
+	msg.Header.Set("project-key-id", projectKey.KeyID)
+	if raw.MessageID != "" {
+		msg.Header.Set(nats.MsgIdHdr, raw.MessageID)
+	}
+
+	if _, err := h.js.PublishMsg(msg); err != nil {
+		slog.Error("publish raw event", "error", err, "project_id", projectKey.ProjectID)
+		writeError(w, http.StatusServiceUnavailable, "queue_unavailable", "event queue unavailable")
+		return
+	}
+
+	writeJSON(w, http.StatusAccepted, acceptedResponse{
+		ID:     eventID,
+		Status: "accepted",
+	})
+}
+
+func readLimitedRequestBody(r *http.Request, maxBytes int64) ([]byte, error) {
+	defer r.Body.Close()
+
+	var body io.Reader = r.Body
+	var gzipReader *gzip.Reader
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Content-Encoding")), "gzip") {
+		reader, err := gzip.NewReader(r.Body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid gzip body: %w", err)
+		}
+		gzipReader = reader
+		defer gzipReader.Close()
+		body = gzipReader
+	}
+
+	return readLimitedBody(body, maxBytes)
+}
+
+func readLimitedBody(body io.Reader, maxBytes int64) ([]byte, error) {
+	limited := io.LimitReader(body, maxBytes+1)
+	payload, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(payload)) > maxBytes {
+		return nil, fmt.Errorf("payload exceeds %d bytes", maxBytes)
+	}
+	return payload, nil
+}
+
+func projectErrorStatus(err error) (int, string) {
+	switch {
+	case errors.Is(err, project.ErrProjectKeyNotFound):
+		return http.StatusUnauthorized, "invalid_project_key"
+	case errors.Is(err, project.ErrProjectDisabled):
+		return http.StatusForbidden, "project_disabled"
+	case errors.Is(err, project.ErrProjectKeyDisabled):
+		return http.StatusForbidden, "project_key_disabled"
+	default:
+		return http.StatusInternalServerError, "project_lookup_failed"
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func writeRateHeaders(w http.ResponseWriter, result quota.Result) {
+	w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
+	w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
+	if result.ResetAfter > 0 {
+		w.Header().Set("X-RateLimit-Reset-After", fmt.Sprintf("%d", int(result.ResetAfter.Seconds())))
+	}
+}
+
+func writeSentryRateLimitHeaders(w http.ResponseWriter, result quota.Result) {
+	retryAfter := int(result.ResetAfter.Seconds())
+	if retryAfter <= 0 {
+		retryAfter = 60
+	}
+	w.Header().Set("Retry-After", fmt.Sprintf("%d", retryAfter))
+	w.Header().Set("X-Sentry-Rate-Limits", fmt.Sprintf("%d:error:project:rate_limited", retryAfter))
+}
+
+func writeIngestCORS(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Encoding, X-Sentry-Auth, X-Sentry-Key, X-SDK-Name, X-SDK-Version")
+	w.Header().Set("Access-Control-Expose-Headers", "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset-After, Retry-After, X-Sentry-Rate-Limits")
+	w.Header().Set("Access-Control-Max-Age", "600")
+}
+
+func extractEventID(body []byte) string {
+	var event struct {
+		EventID string `json:"event_id"`
+	}
+	if err := json.Unmarshal(body, &event); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(event.EventID)
+}
+
+func messageID(eventID string, body []byte) string {
+	if eventID != "" {
+		return eventID
+	}
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:])
+}
+
+func clientIP(r *http.Request) string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		first, _, _ := strings.Cut(forwarded, ",")
+		if ip := net.ParseIP(strings.TrimSpace(first)); ip != nil {
+			return ip.String()
+		}
+	}
+	if ip := net.ParseIP(r.Header.Get("X-Real-IP")); ip != nil {
+		return ip.String()
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}

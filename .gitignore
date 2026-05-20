@@ -1,0 +1,22 @@
+.env
+.idea/
+.vscode/
+
+# Go
+bin/
+coverage.out
+*.test
+
+# Frontend
+node_modules/
+dist/
+ui/node_modules/
+ui/dist/
+
+# Local data
+data/
+tmp/
+
+# OS
+.DS_Store
+Thumbs.db

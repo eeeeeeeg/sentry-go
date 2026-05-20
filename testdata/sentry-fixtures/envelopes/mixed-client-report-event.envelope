@@ -1,0 +1,5 @@
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534103","sdk":{"name":"sentry.javascript.browser","version":"10.52.0"}}
+{"type":"client_report","length":70}
+{"timestamp":1747562400,"discarded_events":[{"reason":"sample_rate"}]}
+{"type":"event","length":209}
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534103","timestamp":"2026-05-18T10:10:00Z","platform":"javascript","level":"error","release":"frontend@1.0.0","environment":"production","message":"mixed envelope event"}

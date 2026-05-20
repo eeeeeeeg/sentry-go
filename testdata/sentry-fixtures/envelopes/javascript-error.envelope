@@ -1,0 +1,3 @@
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534101","sdk":{"name":"sentry.javascript.browser","version":"10.52.0"}}
+{"type":"event","length":405}
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534101","timestamp":"2026-05-18T10:00:00Z","platform":"javascript","level":"error","release":"frontend@1.0.0","environment":"production","exception":{"values":[{"type":"TypeError","value":"Cannot read properties of undefined","stacktrace":{"frames":[{"filename":"https://example.com/assets/app.min.js","function":"render","lineno":1,"colno":1234,"in_app":true}]}}]}}

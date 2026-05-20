@@ -1,0 +1,9 @@
+{
+  "event_id": "018f3a8b42147c9fb2f57b7a7f534102",
+  "timestamp": "2026-05-18T10:05:00Z",
+  "platform": "javascript",
+  "level": "error",
+  "release": "frontend@1.0.0",
+  "environment": "production",
+  "message": "Legacy store endpoint event"
+}

@@ -1,0 +1,19 @@
+POST /api/0/organizations/demo/releases/frontend%401.0.0/files/ HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token
+Content-Type: multipart/form-data; boundary=----sentry-lite-boundary
+
+------sentry-lite-boundary
+Content-Disposition: form-data; name="name"
+
+~/assets/app.min.js.map
+------sentry-lite-boundary
+Content-Disposition: form-data; name="header"
+
+Content-Type: application/json
+------sentry-lite-boundary
+Content-Disposition: form-data; name="file"; filename="app.min.js.map"
+Content-Type: application/json
+
+{"version":3,"file":"app.min.js","sources":["app.tsx"],"sourcesContent":["throw new TypeError('Cannot read properties of undefined');"],"names":[],"mappings":"AAAA"}
+------sentry-lite-boundary--
