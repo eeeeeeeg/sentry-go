@@ -116,6 +116,20 @@ Rules:
 
 ## Ingestion API
 
+Sentry SDK DSN format follows Sentry's documented shape:
+
+```text
+{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}
+```
+
+The local seeded demo project uses:
+
+```text
+http://demo-public-key@localhost:8080/1
+```
+
+The SDK derives the ingest URL from this DSN and sends envelopes to `/api/1/envelope/`.
+
 Current endpoint:
 
 ```text
@@ -128,6 +142,7 @@ POST /api/{project_id}/store/
 Required request properties:
 
 - DSN public key must be provided through `X-Sentry-Key`, `sentry_key`, `X-DSN`, `X-Sentry-Auth`, `Authorization: DSN ...`, or `Authorization: Sentry sentry_key=...`.
+- `{project_id}` accepts the Sentry DSN project ID, the internal UUID, or the local project slug for backwards compatibility.
 - Body size must not exceed `MAX_ENVELOPE_BYTES`.
 - Body must be either a non-empty JSON event object or a Sentry SDK envelope containing a supported ingest item.
 - `Content-Encoding: gzip` is accepted.

@@ -35,6 +35,10 @@ func Connect(ctx context.Context, cfg config.Config) (*Dependencies, error) {
 	if err != nil {
 		return nil, fmt.Errorf("postgres: %w", err)
 	}
+	if err := ensurePostgresCompatibility(ctx, pg); err != nil {
+		pg.Close()
+		return nil, err
+	}
 
 	ch := clickhouse.OpenDB(&clickhouse.Options{
 		Addr: []string{cfg.ClickHouseAddr},

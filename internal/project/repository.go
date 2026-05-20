@@ -25,6 +25,7 @@ type Repository struct {
 type ProjectKey struct {
 	OrganizationID     string
 	ProjectID          string
+	SentryProjectID    string
 	ProjectSlug        string
 	ProjectStatus      string
 	KeyID              string
@@ -35,15 +36,16 @@ type ProjectKey struct {
 }
 
 type Project struct {
-	ID             string    `json:"id"`
-	OrganizationID string    `json:"organization_id"`
-	Slug           string    `json:"slug"`
-	Name           string    `json:"name"`
-	Platform       string    `json:"platform"`
-	Status         string    `json:"status"`
-	SampleRate     float64   `json:"sample_rate"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	OrganizationID  string    `json:"organization_id"`
+	SentryProjectID string    `json:"sentry_project_id"`
+	Slug            string    `json:"slug"`
+	Name            string    `json:"name"`
+	Platform        string    `json:"platform"`
+	Status          string    `json:"status"`
+	SampleRate      float64   `json:"sample_rate"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type Key struct {
@@ -66,6 +68,7 @@ func (r *Repository) FindProjectKey(ctx context.Context, projectRef string, publ
 SELECT
     p.organization_id::text,
     p.id::text,
+    p.sentry_project_id,
     p.slug,
     p.status,
     pk.id::text,
@@ -75,7 +78,7 @@ SELECT
     p.sample_rate::float8
 FROM projects p
 JOIN project_keys pk ON pk.project_id = p.id
-WHERE (p.id::text = $1 OR p.slug = $1)
+WHERE (p.id::text = $1 OR p.slug = $1 OR p.sentry_project_id = $1)
   AND pk.public_key = $2
 LIMIT 1`
 
@@ -83,6 +86,7 @@ LIMIT 1`
 	err := r.db.QueryRow(ctx, query, projectRef, publicKey).Scan(
 		&key.OrganizationID,
 		&key.ProjectID,
+		&key.SentryProjectID,
 		&key.ProjectSlug,
 		&key.ProjectStatus,
 		&key.KeyID,
@@ -110,7 +114,7 @@ func (r *Repository) ResolveProjectID(ctx context.Context, projectRef string) (s
 	const query = `
 SELECT id::text
 FROM projects
-WHERE id::text = $1 OR slug = $1
+WHERE id::text = $1 OR slug = $1 OR sentry_project_id = $1
 LIMIT 1`
 
 	var projectID string
@@ -129,7 +133,7 @@ func (r *Repository) ListProjects(ctx context.Context, limit int, offset int) ([
 		limit = 20
 	}
 	rows, err := r.db.Query(ctx, `
-SELECT id::text, organization_id::text, slug, name, platform, status, sample_rate::float8, created_at, updated_at, count(*) OVER()::int
+SELECT id::text, organization_id::text, sentry_project_id, slug, name, platform, status, sample_rate::float8, created_at, updated_at, count(*) OVER()::int
 FROM projects
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2`, limit, offset)
@@ -142,7 +146,7 @@ LIMIT $1 OFFSET $2`, limit, offset)
 	total := 0
 	for rows.Next() {
 		var item Project
-		if err := rows.Scan(&item.ID, &item.OrganizationID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt, &total); err != nil {
+		if err := rows.Scan(&item.ID, &item.OrganizationID, &item.SentryProjectID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt, &total); err != nil {
 			return nil, 0, fmt.Errorf("scan project: %w", err)
 		}
 		projects = append(projects, item)
@@ -156,10 +160,10 @@ LIMIT $1 OFFSET $2`, limit, offset)
 func (r *Repository) GetProject(ctx context.Context, projectRef string) (Project, error) {
 	var item Project
 	err := r.db.QueryRow(ctx, `
-SELECT id::text, organization_id::text, slug, name, platform, status, sample_rate::float8, created_at, updated_at
+SELECT id::text, organization_id::text, sentry_project_id, slug, name, platform, status, sample_rate::float8, created_at, updated_at
 FROM projects
-WHERE id::text = $1 OR slug = $1
-LIMIT 1`, projectRef).Scan(&item.ID, &item.OrganizationID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
+WHERE id::text = $1 OR slug = $1 OR sentry_project_id = $1
+LIMIT 1`, projectRef).Scan(&item.ID, &item.OrganizationID, &item.SentryProjectID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Project{}, pgx.ErrNoRows
 	}
@@ -182,9 +186,9 @@ INSERT INTO projects (organization_id, slug, name, platform, sample_rate)
 SELECT id, $2, $3, $4, $5
 FROM organizations
 WHERE id::text = $1 OR slug = $1
-RETURNING id::text, organization_id::text, slug, name, platform, status, sample_rate::float8, created_at, updated_at`,
+RETURNING id::text, organization_id::text, sentry_project_id, slug, name, platform, status, sample_rate::float8, created_at, updated_at`,
 		organizationRef, slug, name, platform, sampleRate,
-	).Scan(&item.ID, &item.OrganizationID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
+	).Scan(&item.ID, &item.OrganizationID, &item.SentryProjectID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Project{}, pgx.ErrNoRows
 	}
@@ -214,9 +218,9 @@ func (r *Repository) UpdateProject(ctx context.Context, projectRef string, name 
 UPDATE projects
 SET name = $2, platform = $3, sample_rate = $4, updated_at = now()
 WHERE id::text = $1
-RETURNING id::text, organization_id::text, slug, name, platform, status, sample_rate::float8, created_at, updated_at`,
+RETURNING id::text, organization_id::text, sentry_project_id, slug, name, platform, status, sample_rate::float8, created_at, updated_at`,
 		current.ID, name, platform, sampleRate,
-	).Scan(&item.ID, &item.OrganizationID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
+	).Scan(&item.ID, &item.OrganizationID, &item.SentryProjectID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return Project{}, fmt.Errorf("update project: %w", err)
 	}
@@ -231,10 +235,10 @@ func (r *Repository) UpdateProjectStatus(ctx context.Context, projectRef string,
 	err := r.db.QueryRow(ctx, `
 UPDATE projects
 SET status = $2, updated_at = now()
-WHERE id::text = $1 OR slug = $1
-RETURNING id::text, organization_id::text, slug, name, platform, status, sample_rate::float8, created_at, updated_at`,
+WHERE id::text = $1 OR slug = $1 OR sentry_project_id = $1
+RETURNING id::text, organization_id::text, sentry_project_id, slug, name, platform, status, sample_rate::float8, created_at, updated_at`,
 		projectRef, status,
-	).Scan(&item.ID, &item.OrganizationID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
+	).Scan(&item.ID, &item.OrganizationID, &item.SentryProjectID, &item.Slug, &item.Name, &item.Platform, &item.Status, &item.SampleRate, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Project{}, pgx.ErrNoRows
 	}
@@ -252,7 +256,7 @@ func (r *Repository) ListProjectKeys(ctx context.Context, projectRef string, lim
 SELECT pk.id::text, pk.project_id::text, pk.public_key, pk.name, pk.status, pk.rate_limit_per_minute, pk.created_at, pk.updated_at, count(*) OVER()::int
 FROM project_keys pk
 JOIN projects p ON p.id = pk.project_id
-WHERE p.id::text = $1 OR p.slug = $1
+WHERE p.id::text = $1 OR p.slug = $1 OR p.sentry_project_id = $1
 ORDER BY pk.created_at DESC
 LIMIT $2 OFFSET $3`, projectRef, limit, offset)
 	if err != nil {

@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE SEQUENCE IF NOT EXISTS sentry_project_id_seq START 2;
 
 CREATE TABLE IF NOT EXISTS organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    sentry_project_id TEXT NOT NULL DEFAULT nextval('sentry_project_id_seq')::text,
     slug TEXT NOT NULL,
     name TEXT NOT NULL,
     platform TEXT NOT NULL DEFAULT 'javascript',
@@ -36,6 +38,7 @@ CREATE TABLE IF NOT EXISTS projects (
     sample_rate NUMERIC(5, 4) NOT NULL DEFAULT 1.0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (sentry_project_id),
     UNIQUE (organization_id, slug),
     CHECK (status IN ('active', 'disabled')),
     CHECK (sample_rate >= 0 AND sample_rate <= 1)
@@ -236,8 +239,8 @@ INSERT INTO organizations (slug, name)
 VALUES ('demo', 'Demo Organization')
 ON CONFLICT (slug) DO NOTHING;
 
-INSERT INTO projects (organization_id, slug, name, platform)
-SELECT id, 'web', 'Demo Web Project', 'javascript'
+INSERT INTO projects (organization_id, sentry_project_id, slug, name, platform)
+SELECT id, '1', 'web', 'Demo Web Project', 'javascript'
 FROM organizations
 WHERE slug = 'demo'
 ON CONFLICT (organization_id, slug) DO NOTHING;
