@@ -94,8 +94,14 @@ func TestDecodeIngestPayloadRecordsAllEnvelopeItems(t *testing.T) {
 	if got.Items[0].Type != "client_report" || got.Items[0].Length != 70 {
 		t.Fatalf("first item = %#v", got.Items[0])
 	}
+	if got.Items[0].Category != "outcome" {
+		t.Fatalf("first category = %q", got.Items[0].Category)
+	}
 	if got.Items[1].Type != "event" || got.Items[1].Length != 209 {
 		t.Fatalf("second item = %#v", got.Items[1])
+	}
+	if got.Items[1].Category != "error" {
+		t.Fatalf("second category = %q", got.Items[1].Category)
 	}
 }
 

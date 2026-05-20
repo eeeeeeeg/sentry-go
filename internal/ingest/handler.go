@@ -46,6 +46,23 @@ type RawEventMessage struct {
 	Payload        json.RawMessage        `json:"payload"`
 }
 
+type RawEnvelopeItemMessage struct {
+	MessageID      string               `json:"message_id"`
+	ReceivedAt     time.Time            `json:"received_at"`
+	RemoteIP       string               `json:"remote_ip"`
+	UserAgent      string               `json:"user_agent"`
+	SDKName        string               `json:"sdk_name,omitempty"`
+	SDKVersion     string               `json:"sdk_version,omitempty"`
+	OrganizationID string               `json:"organization_id"`
+	ProjectID      string               `json:"project_id"`
+	ProjectRef     string               `json:"project_ref"`
+	ProjectKeyID   string               `json:"project_key_id"`
+	PublicKey      string               `json:"public_key"`
+	EventID        string               `json:"event_id,omitempty"`
+	Item           EnvelopeItemMetadata `json:"item"`
+	Payload        json.RawMessage      `json:"payload"`
+}
+
 type acceptedResponse struct {
 	ID     string `json:"id,omitempty"`
 	Status string `json:"status"`
@@ -130,10 +147,21 @@ func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !decoded.HasEvent {
+		if err := h.publishEnvelopeItems(projectKey, projectRef, decoded, body, r); err != nil {
+			slog.Error("publish envelope items", "error", err, "project_id", projectKey.ProjectID)
+			writeError(w, http.StatusServiceUnavailable, "queue_unavailable", "event queue unavailable")
+			return
+		}
 		writeJSON(w, http.StatusAccepted, acceptedResponse{
 			ID:     decoded.EventID,
 			Status: "accepted",
 		})
+		return
+	}
+
+	if err := h.publishEnvelopeItems(projectKey, projectRef, decoded, body, r); err != nil {
+		slog.Error("publish envelope items", "error", err, "project_id", projectKey.ProjectID)
+		writeError(w, http.StatusServiceUnavailable, "queue_unavailable", "event queue unavailable")
 		return
 	}
 
@@ -150,7 +178,7 @@ func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
 		ProjectRef:     projectRef,
 		ProjectKeyID:   projectKey.KeyID,
 		PublicKey:      projectKey.PublicKey,
-		EnvelopeItems:  decoded.Items,
+		EnvelopeItems:  envelopeItemMetadataList(decoded.Items),
 		Payload:        decoded.Payload,
 	}
 
@@ -180,6 +208,66 @@ func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
 		ID:     eventID,
 		Status: "accepted",
 	})
+}
+
+func (h *Handler) publishEnvelopeItems(projectKey project.ProjectKey, projectRef string, decoded decodedEnvelope, originalBody []byte, r *http.Request) error {
+	receivedAt := time.Now().UTC()
+	for index, item := range decoded.Items {
+		if item.Type == "event" {
+			continue
+		}
+		raw := RawEnvelopeItemMessage{
+			MessageID:      itemMessageID(decoded.EventID, item, index, originalBody),
+			ReceivedAt:     receivedAt,
+			RemoteIP:       clientIP(r),
+			UserAgent:      r.UserAgent(),
+			SDKName:        firstNonEmpty(decoded.SDKName, r.Header.Get("X-SDK-Name")),
+			SDKVersion:     firstNonEmpty(decoded.SDKVersion, r.Header.Get("X-SDK-Version")),
+			OrganizationID: projectKey.OrganizationID,
+			ProjectID:      projectKey.ProjectID,
+			ProjectRef:     projectRef,
+			ProjectKeyID:   projectKey.KeyID,
+			PublicKey:      projectKey.PublicKey,
+			EventID:        decoded.EventID,
+			Item:           item.EnvelopeItemMetadata,
+			Payload:        item.Payload,
+		}
+		body, err := json.Marshal(raw)
+		if err != nil {
+			return fmt.Errorf("marshal raw envelope item: %w", err)
+		}
+		msg := nats.NewMsg(h.subjectForEnvelopeItem(item.EnvelopeItemMetadata))
+		msg.Data = body
+		msg.Header.Set("content-type", "application/json")
+		msg.Header.Set("project-id", projectKey.ProjectID)
+		msg.Header.Set("project-key-id", projectKey.KeyID)
+		msg.Header.Set("item-type", item.Type)
+		msg.Header.Set("category", item.Category)
+		msg.Header.Set(nats.MsgIdHdr, raw.MessageID)
+		if _, err := h.js.PublishMsg(msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *Handler) subjectForEnvelopeItem(item EnvelopeItemMetadata) string {
+	switch item.Category {
+	case "transaction":
+		return h.cfg.RawTransactionSubject
+	case "session":
+		return h.cfg.RawSessionSubject
+	case "attachment":
+		return h.cfg.RawAttachmentSubject
+	case "profile":
+		return h.cfg.RawProfileSubject
+	case "replay":
+		return h.cfg.RawReplaySubject
+	case "outcome":
+		return h.cfg.RawOutcomeSubject
+	default:
+		return h.cfg.UnsupportedItemSubject
+	}
 }
 
 func readLimitedRequestBody(r *http.Request, maxBytes int64) ([]byte, error) {
@@ -275,6 +363,25 @@ func messageID(eventID string, body []byte) string {
 	}
 	sum := sha256.Sum256(body)
 	return hex.EncodeToString(sum[:])
+}
+
+func itemMessageID(eventID string, item EnvelopeItem, index int, body []byte) string {
+	if eventID != "" {
+		return fmt.Sprintf("%s-%s-%d", eventID, item.Type, index)
+	}
+	sum := sha256.Sum256(append(body, []byte(fmt.Sprintf(":%s:%d", item.Type, index))...))
+	return hex.EncodeToString(sum[:])
+}
+
+func envelopeItemMetadataList(items []EnvelopeItem) []EnvelopeItemMetadata {
+	if len(items) == 0 {
+		return nil
+	}
+	metadata := make([]EnvelopeItemMetadata, 0, len(items))
+	for _, item := range items {
+		metadata = append(metadata, item.EnvelopeItemMetadata)
+	}
+	return metadata
 }
 
 func clientIP(r *http.Request) string {

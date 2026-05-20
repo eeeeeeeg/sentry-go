@@ -17,12 +17,18 @@ type decodedEnvelope struct {
 	SDKName    string
 	SDKVersion string
 	HasEvent   bool
-	Items      []EnvelopeItemMetadata
+	Items      []EnvelopeItem
 	Payload    []byte
+}
+
+type EnvelopeItem struct {
+	EnvelopeItemMetadata
+	Payload json.RawMessage `json:"payload,omitempty"`
 }
 
 type EnvelopeItemMetadata struct {
 	Type        string `json:"type"`
+	Category    string `json:"category"`
 	Length      int    `json:"length"`
 	ContentType string `json:"content_type,omitempty"`
 	Filename    string `json:"filename,omitempty"`
@@ -41,9 +47,13 @@ func decodeIngestPayload(body []byte) (decodedEnvelope, error) {
 		return decodedEnvelope{
 			EventID:  extractEventID(trimmed),
 			HasEvent: true,
-			Items: []EnvelopeItemMetadata{{
-				Type:   "event",
-				Length: len(trimmed),
+			Items: []EnvelopeItem{{
+				EnvelopeItemMetadata: EnvelopeItemMetadata{
+					Type:     "event",
+					Category: envelopeItemCategory("event"),
+					Length:   len(trimmed),
+				},
+				Payload: json.RawMessage(trimmed),
 			}},
 			Payload: trimmed,
 		}, nil
@@ -84,7 +94,10 @@ func decodeSentryEnvelope(body []byte) (decodedEnvelope, error) {
 			return decodedEnvelope{}, err
 		}
 		itemMeta := envelopeItemMetadata(itemHeader, len(itemPayload))
-		decoded.Items = append(decoded.Items, itemMeta)
+		decoded.Items = append(decoded.Items, EnvelopeItem{
+			EnvelopeItemMetadata: itemMeta,
+			Payload:              json.RawMessage(bytes.TrimSpace(itemPayload)),
+		})
 		if itemMeta.Type != "event" {
 			continue
 		}
@@ -164,10 +177,34 @@ func envelopeItemMetadata(itemHeader map[string]any, payloadLength int) Envelope
 	}
 	return EnvelopeItemMetadata{
 		Type:        itemType(itemHeader),
+		Category:    envelopeItemCategory(itemType(itemHeader)),
 		Length:      length,
 		ContentType: stringFromHeader(itemHeader, "content_type"),
 		Filename:    stringFromHeader(itemHeader, "filename"),
 		Attachment:  stringFromHeader(itemHeader, "attachment_type"),
+	}
+}
+
+func envelopeItemCategory(itemType string) string {
+	switch itemType {
+	case "event":
+		return "error"
+	case "transaction":
+		return "transaction"
+	case "session", "sessions":
+		return "session"
+	case "attachment":
+		return "attachment"
+	case "profile", "profile_chunk":
+		return "profile"
+	case "replay_event", "replay_recording":
+		return "replay"
+	case "client_report":
+		return "outcome"
+	case "check_in":
+		return "monitor"
+	default:
+		return "default"
 	}
 }
 

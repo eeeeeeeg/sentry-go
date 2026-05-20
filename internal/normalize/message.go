@@ -23,6 +23,7 @@ type RawEventMessage struct {
 
 type EnvelopeItemMetadata struct {
 	Type        string `json:"type"`
+	Category    string `json:"category"`
 	Length      int    `json:"length"`
 	ContentType string `json:"content_type,omitempty"`
 	Filename    string `json:"filename,omitempty"`

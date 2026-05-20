@@ -26,6 +26,13 @@ type Config struct {
 
 	RawEventStream         string
 	RawEventSubject        string
+	RawTransactionSubject  string
+	RawSessionSubject      string
+	RawAttachmentSubject   string
+	RawProfileSubject      string
+	RawReplaySubject       string
+	RawOutcomeSubject      string
+	UnsupportedItemSubject string
 	NormalizedEventSubject string
 	GroupedEventSubject    string
 	AlertEventSubject      string
@@ -89,6 +96,13 @@ func Load() (Config, error) {
 
 		RawEventStream:         getenv("RAW_EVENT_STREAM", "EVENTS"),
 		RawEventSubject:        getenv("RAW_EVENT_SUBJECT", "events.raw"),
+		RawTransactionSubject:  getenv("RAW_TRANSACTION_SUBJECT", "transactions.raw"),
+		RawSessionSubject:      getenv("RAW_SESSION_SUBJECT", "sessions.raw"),
+		RawAttachmentSubject:   getenv("RAW_ATTACHMENT_SUBJECT", "attachments.raw"),
+		RawProfileSubject:      getenv("RAW_PROFILE_SUBJECT", "profiles.raw"),
+		RawReplaySubject:       getenv("RAW_REPLAY_SUBJECT", "replays.raw"),
+		RawOutcomeSubject:      getenv("RAW_OUTCOME_SUBJECT", "outcomes.raw"),
+		UnsupportedItemSubject: getenv("UNSUPPORTED_ITEM_SUBJECT", "envelopes.unsupported"),
 		NormalizedEventSubject: getenv("NORMALIZED_EVENT_SUBJECT", "events.normalized"),
 		GroupedEventSubject:    getenv("GROUPED_EVENT_SUBJECT", "events.grouped"),
 		AlertEventSubject:      getenv("ALERT_EVENT_SUBJECT", "alerts.triggered"),

@@ -13,16 +13,16 @@ Status values:
 
 | Area | Official reference | Method / item | Status | Current behavior | Gaps | Fixture |
 | --- | --- | --- | --- | --- | --- | --- |
-| Envelope ingestion | https://develop.sentry.dev/sdk/envelopes/ | `POST /api/{project_id}/envelope/` | partial | Accepts newline-delimited envelopes, gzip, CORS preflight, Sentry auth headers, records all envelope item metadata, extracts `event` item. | Only `event` is persisted; no per-item category storage, outcomes, partial accept, attachments, replay, profile, or sessions processing. | `testdata/sentry-fixtures/envelopes/javascript-error.envelope`, `testdata/sentry-fixtures/envelopes/mixed-client-report-event.envelope` |
+| Envelope ingestion | https://develop.sentry.dev/sdk/envelopes/ | `POST /api/{project_id}/envelope/` | partial | Accepts newline-delimited envelopes, gzip, CORS preflight, Sentry auth headers, records all envelope item metadata, extracts `event` item. | Only `event` is normalized today; non-event items are routed to raw subjects but do not yet have processors/storage. | `testdata/sentry-fixtures/envelopes/javascript-error.envelope`, `testdata/sentry-fixtures/envelopes/mixed-client-report-event.envelope` |
 | Legacy store ingestion | https://develop.sentry.dev/sdk/overview/ | `POST /api/{project_id}/store/` | partial | Accepts JSON event payload through the same handler as envelope. | Store endpoint is legacy; response/error behavior not fully verified against old SDKs. | `testdata/sentry-fixtures/envelopes/store-event.json` |
 | Authentication | https://develop.sentry.dev/sdk/overview/ | `X-Sentry-Auth`, `Authorization: Sentry ...`, `sentry_key` | partial | Extracts public key from common SDK auth forms. | Does not validate sentry_version, sentry_client, sentry_timestamp, or secret key semantics. | `testdata/sentry-fixtures/requests/envelope.http` |
 | Rate limits | https://develop.sentry.dev/sdk/expected-features/rate-limiting/ | `X-Sentry-Rate-Limits`, `Retry-After` | partial | Emits basic project-level rate-limit headers for rejected events. | Not category-aware; no Relay quota categories or client report outcome accounting. | Not yet |
 | Event payload normalization | https://develop.sentry.dev/sdk/data-model/event-payloads/ | `event` | partial | Supports message events and SDK-style `exception.values[].stacktrace.frames[]`; canonicalizes 32-char event IDs. | Missing full request/user/contexts/modules/threads/mechanism model and complete Sentry validation rules. | `testdata/sentry-fixtures/envelopes/javascript-error.envelope` |
 | Transactions | https://develop.sentry.dev/sdk/telemetry/traces/ | `transaction` item | planned | Not processed. | Need ClickHouse schema, span model, sampling, and query API. | Not yet |
-| Sessions | https://develop.sentry.dev/sdk/telemetry/sessions/ | `session`, `sessions` items | planned | Accepted and ignored if no event item exists. | Need release health storage and APIs. | Not yet |
-| Attachments | https://docs.sentry.io/platforms/javascript/enriching-events/attachments/ | `attachment` item | planned | Not processed. | Need object storage and event attachment APIs. | Not yet |
-| Profiles | https://develop.sentry.dev/sdk/telemetry/profiles/ | `profile` item | planned | Not processed. | Need object storage/schema/query endpoints. | Not yet |
-| Replays | https://docs.sentry.io/product/session-replay/ | `replay_event`, `replay_recording` items | planned | Not processed. | Need replay metadata/chunk storage and APIs. | Not yet |
+| Sessions | https://develop.sentry.dev/sdk/telemetry/sessions/ | `session`, `sessions` items | partial | Routed to `sessions.raw`. | Need release health storage and APIs. | Not yet |
+| Attachments | https://docs.sentry.io/platforms/javascript/enriching-events/attachments/ | `attachment` item | partial | Routed to `attachments.raw`. | Need object storage and event attachment APIs. | Not yet |
+| Profiles | https://develop.sentry.dev/sdk/telemetry/profiles/ | `profile` item | partial | Routed to `profiles.raw`. | Need object storage/schema/query endpoints. | Not yet |
+| Replays | https://docs.sentry.io/product/session-replay/ | `replay_event`, `replay_recording` items | partial | Routed to `replays.raw`. | Need replay metadata/chunk storage and APIs. | Not yet |
 
 ## API Authentication
 

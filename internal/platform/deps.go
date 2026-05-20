@@ -166,6 +166,13 @@ func (d *Dependencies) ensureJetStream() error {
 func ensureStreams(js nats.JetStreamContext, cfg config.Config) error {
 	subjects := []string{
 		cfg.RawEventSubject,
+		cfg.RawTransactionSubject,
+		cfg.RawSessionSubject,
+		cfg.RawAttachmentSubject,
+		cfg.RawProfileSubject,
+		cfg.RawReplaySubject,
+		cfg.RawOutcomeSubject,
+		cfg.UnsupportedItemSubject,
 		cfg.NormalizedEventSubject,
 		cfg.GroupedEventSubject,
 		cfg.AlertEventSubject,
