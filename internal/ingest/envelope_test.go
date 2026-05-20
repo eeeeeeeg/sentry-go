@@ -117,6 +117,27 @@ func TestDecodeIngestPayloadAcceptsEnvelopeWithoutEvent(t *testing.T) {
 	}
 }
 
+func TestDecodeIngestPayloadAcceptsSessionsFixture(t *testing.T) {
+	body := testutil.Fixture(t, "envelopes", "sessions.envelope")
+
+	got, err := decodeIngestPayload(body)
+	if err != nil {
+		t.Fatalf("decodeIngestPayload() error = %v", err)
+	}
+	if got.HasEvent {
+		t.Fatal("decodeIngestPayload() marked sessions envelope as event")
+	}
+	if len(got.Items) != 2 {
+		t.Fatalf("Items length = %d", len(got.Items))
+	}
+	if got.Items[0].Type != "session" || got.Items[0].Category != "session" {
+		t.Fatalf("first item = %#v", got.Items[0])
+	}
+	if got.Items[1].Type != "sessions" || got.Items[1].Category != "session" {
+		t.Fatalf("second item = %#v", got.Items[1])
+	}
+}
+
 func TestReadLimitedRequestBodyAcceptsGzip(t *testing.T) {
 	var compressed bytes.Buffer
 	writer := gzip.NewWriter(&compressed)

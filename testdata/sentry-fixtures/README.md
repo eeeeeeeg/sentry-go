@@ -10,6 +10,12 @@ Use them for compatibility tests when adding or changing Sentry-compatible behav
 - `requests/`: HTTP-style request fixtures for endpoint-level integration tests.
 - `artifacts/`: Release artifact payloads, including source maps and future debug files.
 
+Current envelope fixtures:
+
+- `javascript-error.envelope`: JavaScript SDK style error event envelope.
+- `mixed-client-report-event.envelope`: Envelope with a `client_report` item followed by an event item.
+- `sessions.envelope`: Envelope with individual `session` and aggregate `sessions` items.
+
 ## Local Defaults
 
 The default migration seeds:

@@ -102,6 +102,23 @@ services:
       redis:
         condition: service_healthy
 
+  worker-session:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/worker-session"]
+    env_file:
+      - .env.example
+    depends_on:
+      nats:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     environment:

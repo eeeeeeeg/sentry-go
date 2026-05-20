@@ -99,3 +99,30 @@ CREATE TABLE IF NOT EXISTS sentry.outcomes
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (project_id, category, reason, timestamp);
+
+CREATE TABLE IF NOT EXISTS sentry.sessions
+(
+    project_id UUID,
+    project_key_id UUID,
+    session_id String,
+    distinct_id_hash String,
+    started_at DateTime64(3, 'UTC'),
+    bucket DateTime64(3, 'UTC'),
+    timestamp DateTime64(3, 'UTC'),
+    received_at DateTime64(3, 'UTC') DEFAULT now64(3),
+    release String,
+    environment LowCardinality(String),
+    status LowCardinality(String),
+    init UInt8,
+    sequence Float64,
+    errors UInt64,
+    duration Float64,
+    quantity UInt64,
+    abnormal_mechanism LowCardinality(String),
+    source LowCardinality(String),
+    sdk_name LowCardinality(String),
+    sdk_version String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(bucket)
+ORDER BY (project_id, release, environment, bucket, status);
