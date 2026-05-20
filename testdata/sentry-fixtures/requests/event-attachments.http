@@ -1,0 +1,9 @@
+GET /api/0/projects/demo/web/events/018f3a8b42147c9fb2f57b7a7f534103/attachments/ HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token
+
+###
+
+GET /api/0/projects/demo/web/events/018f3a8b42147c9fb2f57b7a7f534103/attachments/{attachment_id}/?download=true HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token

@@ -227,7 +227,14 @@ INSERT INTO api_tokens (organization_id, name, token_hash, scopes)
 SELECT id,
        'Demo API Token',
        '9477b34a9c255f76f79d282640e9f9d02f1b32a370408fdac63538ce33a788ed',
-       ARRAY['project:read', 'project:write', 'project:admin', 'project:releases', 'org:ci']
+       ARRAY['project:read', 'project:write', 'project:admin', 'project:releases', 'org:ci', 'event:read', 'event:write', 'event:admin']
 FROM organizations
 WHERE slug = 'demo'
-ON CONFLICT (token_hash) DO NOTHING;
+ON CONFLICT (token_hash) DO UPDATE
+SET scopes = (
+    SELECT ARRAY(
+        SELECT DISTINCT scope
+        FROM unnest(api_tokens.scopes || EXCLUDED.scopes) AS scope
+        ORDER BY scope
+    )
+);

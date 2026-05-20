@@ -16,6 +16,7 @@ Current envelope fixtures:
 - `event-with-attachment.envelope`: Event followed by an `attachment` item.
 - `mixed-client-report-event.envelope`: Envelope with a `client_report` item followed by an event item.
 - `sessions.envelope`: Envelope with individual `session` and aggregate `sessions` items.
+- `requests/event-attachments.http`: Project event attachment list and download requests.
 
 ## Local Defaults
 

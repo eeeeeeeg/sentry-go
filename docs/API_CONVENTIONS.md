@@ -143,6 +143,18 @@ Basic payload validation:
 - `exception.type` and `exception.value` must be strings when present.
 - `exception.stacktrace` must be an array when present.
 - Sentry SDK style `exception.values[].type`, `exception.values[].value`, and `exception.values[].stacktrace.frames` are accepted.
+
+## Event Attachments API
+
+```text
+GET /api/0/projects/{organization_slug}/{project_slug}/events/{event_id}/attachments/
+GET /api/0/projects/{organization_slug}/{project_slug}/events/{event_id}/attachments/{attachment_id}/
+DELETE /api/0/projects/{organization_slug}/{project_slug}/events/{event_id}/attachments/{attachment_id}/
+```
+
+- List/get/download require one of `event:read`, `event:write`, or `event:admin`.
+- Delete requires `event:admin`.
+- `download=true` returns the raw attachment bytes with `Content-Type` and `Content-Disposition`.
 - At least one of `message`, `exception.type`, `exception.value`, `exception.values[].type`, or `exception.values[].value` is required.
 
 Accepted response:

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"sentry-lite/internal/alert"
+	"sentry-lite/internal/attachment"
 	"sentry-lite/internal/auth"
 	"sentry-lite/internal/ingest"
 	"sentry-lite/internal/issue"
@@ -50,6 +51,11 @@ func NewRouter(deps *platform.Dependencies) http.Handler {
 		cfg:      deps.Config,
 		auth:     auth.NewRepository(deps.Postgres),
 		releases: release.NewRepository(deps.Postgres),
+	}.register(r)
+
+	attachmentHandler{
+		auth:        auth.NewRepository(deps.Postgres),
+		attachments: attachment.NewRepository(deps.Postgres),
 	}.register(r)
 
 	queryHandler{
