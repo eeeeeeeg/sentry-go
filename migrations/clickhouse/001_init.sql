@@ -177,3 +177,30 @@ CREATE TABLE IF NOT EXISTS sentry.spans
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(start_timestamp)
 ORDER BY (project_id, trace_id, start_timestamp, span_id);
+
+CREATE TABLE IF NOT EXISTS sentry.profiles
+(
+    profile_id String,
+    event_id String,
+    organization_id UUID,
+    project_id UUID,
+    project_key_id UUID,
+    trace_id String,
+    transaction_id String,
+    transaction String,
+    platform LowCardinality(String),
+    version String,
+    release String,
+    environment LowCardinality(String),
+    received_at DateTime64(3, 'UTC') DEFAULT now64(3),
+    sdk_name LowCardinality(String),
+    sdk_version String,
+    item_type LowCardinality(String),
+    duration_ns UInt64,
+    sample_count UInt64,
+    thread_count UInt64,
+    raw_profile String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(received_at)
+ORDER BY (project_id, transaction, received_at, profile_id);

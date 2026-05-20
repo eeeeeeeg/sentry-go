@@ -181,6 +181,24 @@ func TestDecodeIngestPayloadAcceptsTransactionFixture(t *testing.T) {
 	}
 }
 
+func TestDecodeIngestPayloadAcceptsProfileFixture(t *testing.T) {
+	body := testutil.Fixture(t, "envelopes", "profile.envelope")
+
+	got, err := decodeIngestPayload(body)
+	if err != nil {
+		t.Fatalf("decodeIngestPayload() error = %v", err)
+	}
+	if got.HasEvent {
+		t.Fatal("decodeIngestPayload() marked profile as error event")
+	}
+	if got.EventID != "018f3a8b42147c9fb2f57b7a7f534104" {
+		t.Fatalf("EventID = %q", got.EventID)
+	}
+	if len(got.Items) != 1 || got.Items[0].Type != "profile" || got.Items[0].Category != "profile" {
+		t.Fatalf("Items = %#v", got.Items)
+	}
+}
+
 func TestReadLimitedRequestBodyAcceptsGzip(t *testing.T) {
 	var compressed bytes.Buffer
 	writer := gzip.NewWriter(&compressed)

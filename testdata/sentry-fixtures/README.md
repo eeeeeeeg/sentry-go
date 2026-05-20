@@ -17,6 +17,7 @@ Current envelope fixtures:
 - `mixed-client-report-event.envelope`: Envelope with a `client_report` item followed by an event item.
 - `sessions.envelope`: Envelope with individual `session` and aggregate `sessions` items.
 - `transaction.envelope`: Performance transaction item with a child span.
+- `profile.envelope`: Transaction profile item associated with a transaction.
 - `requests/event-attachments.http`: Project event attachment list and download requests.
 - `requests/transactions.http`: Internal performance transaction list/detail/span requests.
 
