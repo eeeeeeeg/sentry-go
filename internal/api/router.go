@@ -20,6 +20,7 @@ import (
 	"sentry-lite/internal/project"
 	"sentry-lite/internal/quota"
 	"sentry-lite/internal/release"
+	"sentry-lite/internal/replay"
 	"sentry-lite/internal/storage"
 )
 
@@ -56,6 +57,11 @@ func NewRouter(deps *platform.Dependencies) http.Handler {
 	attachmentHandler{
 		auth:        auth.NewRepository(deps.Postgres),
 		attachments: attachment.NewRepository(deps.Postgres),
+	}.register(r)
+
+	replayHandler{
+		auth:    auth.NewRepository(deps.Postgres),
+		replays: replay.NewRepository(deps.Postgres),
 	}.register(r)
 
 	queryHandler{

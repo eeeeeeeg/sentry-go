@@ -21,6 +21,7 @@ Current envelope fixtures:
 - `replay.envelope`: Session Replay metadata and recording segment items.
 - `requests/event-attachments.http`: Project event attachment list and download requests.
 - `requests/transactions.http`: Internal performance transaction list/detail/span requests.
+- `requests/replay-segments.http`: Sentry-style Replay recording segment list/retrieve requests.
 
 ## Local Defaults
 

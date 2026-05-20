@@ -1,0 +1,9 @@
+GET /api/0/projects/demo/web/replays/018f3a8b42147c9fb2f57b7a7f534105/recording-segments/ HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token
+
+###
+
+GET /api/0/projects/demo/web/replays/018f3a8b42147c9fb2f57b7a7f534105/recording-segments/0/ HTTP/1.1
+Host: localhost:8080
+Authorization: Bearer demo-api-token

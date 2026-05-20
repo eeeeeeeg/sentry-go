@@ -167,6 +167,17 @@ GET /api/transactions/{event_id}/spans
 - Transaction list supports `limit`, `offset`, `operation`, `environment`, `release`, `query`, `since`, and `until`.
 - `event_id` may be either Sentry's 32-character hex ID or canonical UUID format.
 - These are internal read APIs over the `sentry.transactions` and `sentry.spans` ClickHouse tables; Sentry Discover-compatible response shapes are not implemented yet.
+
+## Replay Recording Segment API
+
+```text
+GET /api/0/projects/{organization_slug}/{project_slug}/replays/{replay_id}/recording-segments/
+GET /api/0/projects/{organization_slug}/{project_slug}/replays/{replay_id}/recording-segments/{segment_id}/
+```
+
+- Requires one of `project:read`, `project:write`, or `project:admin`.
+- The segment detail endpoint returns the raw recording segment bytes with the stored `Content-Type`.
+- `replay_id` may be either Sentry's 32-character hex ID or canonical UUID format.
 - At least one of `message`, `exception.type`, `exception.value`, `exception.values[].type`, or `exception.values[].value` is required.
 
 Accepted response:
