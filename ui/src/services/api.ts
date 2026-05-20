@@ -100,6 +100,7 @@ export type AlertDelivery = {
 export type Project = {
   id: string;
   organization_id: string;
+  sentry_project_id: string;
   slug: string;
   name: string;
   platform: string;
@@ -344,7 +345,7 @@ export async function createWebhookAlert(projectId: string, body: {
 export async function sendTestEvent(projectId: string, publicKey: string): Promise<{ id?: string; status: string }> {
   return request<{ id?: string; status: string }>({
     method: "POST",
-    url: `/api/${projectId}/envelope`,
+    url: `/api/${projectId}/envelope/`,
     headers: { "X-Sentry-Key": publicKey },
     data: {
       event_id: crypto.randomUUID?.(),

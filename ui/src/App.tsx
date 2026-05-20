@@ -13,7 +13,7 @@ import { SystemPage } from "./pages/system/SystemPage";
 import { EventItem } from "./services/api";
 
 export function App() {
-  const [projectId, setProjectId] = useState("web");
+  const [projectId, setProjectId] = useState("1");
   const [status, setStatus] = useState("unresolved");
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [query, setQuery] = useState("");

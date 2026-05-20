@@ -35,8 +35,9 @@ export function useProjects(selectedProjectId: string, refreshKey = 0, projectOf
     async () => {
       const projectResult = await listProjectsPage({ limit: pageSize, offset: projectOffset });
       const projects = projectResult.items;
-      const current = projects.find((item) => item.slug === selectedProjectId || item.id === selectedProjectId) ?? projects[0];
-      const keyResult = current ? await listProjectKeysPage(current.slug, { limit: pageSize, offset: keyOffset }) : { items: [], page: { limit: pageSize, offset: 0, total: 0 } };
+      const current = projects.find((item) => item.slug === selectedProjectId || item.id === selectedProjectId || item.sentry_project_id === selectedProjectId) ?? projects[0];
+      const projectRef = current?.sentry_project_id ?? current?.slug;
+      const keyResult = projectRef ? await listProjectKeysPage(projectRef, { limit: pageSize, offset: keyOffset }) : { items: [], page: { limit: pageSize, offset: 0, total: 0 } };
       return { projects, keys: keyResult.items, current, projectsPage: projectResult.page, keysPage: keyResult.page };
     },
     {

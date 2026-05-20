@@ -48,13 +48,13 @@ export function Topbar({
         {projects.length > 0 ? (
           <select className="min-w-0 px-3 outline-none" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
             {projects.map((project) => (
-              <option key={project.id} value={project.slug}>
-                {project.name}
+              <option key={project.id} value={project.sentry_project_id}>
+                {project.name} / {project.sentry_project_id}
               </option>
             ))}
           </select>
         ) : (
-          <input className="min-w-0 px-3 outline-none" value={projectId} onChange={(event) => setProjectId(event.target.value.trim() || "web")} />
+          <input className="min-w-0 px-3 outline-none" value={projectId} onChange={(event) => setProjectId(event.target.value.trim() || "1")} />
         )}
       </label>
       <label className={clsx("flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3", searchDisabled && "opacity-50")}>

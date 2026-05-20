@@ -39,7 +39,7 @@ export function ProjectsPage({
     if (!keyword) {
       return projects;
     }
-    return projects.filter((project) => `${project.name} ${project.slug} ${project.platform}`.toLowerCase().includes(keyword));
+    return projects.filter((project) => `${project.name} ${project.slug} ${project.sentry_project_id} ${project.platform}`.toLowerCase().includes(keyword));
   }, [projectQuery, projects]);
 
   useEffect(() => onLoadingChange(loading), [loading, onLoadingChange]);
@@ -54,7 +54,7 @@ export function ProjectsPage({
 
   async function submitProject(form: FormData) {
     if (projectModal === "edit" && current) {
-      await saveProject(current.slug, form);
+      await saveProject(current.sentry_project_id, form);
     } else {
       await addProject(form);
     }
@@ -68,7 +68,7 @@ export function ProjectsPage({
     if (keyModal && keyModal !== "create") {
       await saveKey(keyModal.id, form);
     } else {
-      await addKey(current.slug, form);
+      await addKey(current.sentry_project_id, form);
     }
     setKeyModal(null);
   }
@@ -93,7 +93,7 @@ export function ProjectsPage({
               <Search className="h-4 w-4" />
               <input
                 className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none"
-                placeholder="搜索项目名称、标识或平台"
+                placeholder="搜索项目名称、Project ID、slug 或平台"
                 value={projectQuery}
                 onChange={(event) => setProjectQuery(event.target.value)}
               />
@@ -116,9 +116,9 @@ export function ProjectsPage({
                 {filteredProjects.map((project) => (
                   <tr key={project.id} className={clsx("transition", current?.id === project.id ? "bg-blue-50/70" : "hover:bg-slate-50")}>
                     <td className="px-3 py-3">
-                      <button className="block min-w-0 text-left" onClick={() => setProjectId(project.slug)}>
+                      <button className="block min-w-0 text-left" onClick={() => setProjectId(project.sentry_project_id)}>
                         <span className="block truncate font-medium text-slate-900">{project.name}</span>
-                        <span className="block truncate text-xs text-slate-500">{project.slug}</span>
+                        <span className="block truncate text-xs text-slate-500">Project ID {project.sentry_project_id} / {project.slug}</span>
                       </button>
                     </td>
                     <td className="px-3 py-3 text-slate-600">{project.platform}</td>
@@ -128,7 +128,7 @@ export function ProjectsPage({
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex justify-end gap-2">
-                        <button className="btn h-8 px-2" onClick={() => setProjectId(project.slug)}>
+                        <button className="btn h-8 px-2" onClick={() => setProjectId(project.sentry_project_id)}>
                           查看
                         </button>
                       </div>
@@ -151,7 +151,7 @@ export function ProjectsPage({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-lg font-semibold text-slate-950">{current.name}</div>
-                    <div className="mt-1 truncate text-sm text-slate-500">{current.slug}</div>
+                    <div className="mt-1 truncate text-sm text-slate-500">Project ID {current.sentry_project_id} / {current.slug}</div>
                   </div>
                   <StatusBadge status={current.status} />
                 </div>
@@ -172,6 +172,8 @@ export function ProjectsPage({
               </div>
 
               <div className="grid gap-3">
+                <Metric label="Sentry Project ID" value={current.sentry_project_id} />
+                <Metric label="DSN Path" value={`/${current.sentry_project_id}`} />
                 <Metric label="平台" value={current.platform} />
                 <Metric label="采样率" value={String(current.sample_rate)} />
                 <Metric label="组织 ID" value={current.organization_id} />
@@ -187,7 +189,7 @@ export function ProjectsPage({
                   </div>
                   <Switch
                     checked={current.status === "active"}
-                    onChange={(checked) => void setProjectStatus(current.slug, checked ? "active" : "disabled")}
+                    onChange={(checked) => void setProjectStatus(current.sentry_project_id, checked ? "active" : "disabled")}
                     className={clsx("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition", current.status === "active" ? "bg-emerald-600" : "bg-slate-300")}
                   >
                     <span className={clsx("inline-block h-5 w-5 rounded-full bg-white transition", current.status === "active" ? "translate-x-5" : "translate-x-1")} />
@@ -245,9 +247,10 @@ function OnboardingDrawer({
   projectKey?: ProjectKey;
 }) {
   const [message, setMessage] = useState("");
-  const endpoint = current ? `${window.location.origin}/api/${current.slug}/envelope` : "";
   const publicKey = projectKey?.public_key ?? "";
-  const snippet = current && publicKey ? javascriptSnippet(endpoint, publicKey) : "";
+  const dsn = current && publicKey ? publicDsn(current, publicKey) : "";
+  const ingestEndpoint = current ? `${window.location.origin}/api/${current.sentry_project_id}/envelope/` : "";
+  const snippet = dsn ? javascriptSnippet(dsn) : "";
 
   async function copy(text: string) {
     await navigator.clipboard.writeText(text);
@@ -262,7 +265,7 @@ function OnboardingDrawer({
     }
     setMessage("");
     try {
-      await sendTestEvent(current.slug, publicKey);
+      await sendTestEvent(current.sentry_project_id, publicKey);
       setMessage("测试事件已发送，稍后可在 Issue / Event 页面查看");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "测试事件发送失败");
@@ -278,7 +281,7 @@ function OnboardingDrawer({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <DialogTitle className="text-lg font-semibold text-slate-950">项目接入指引</DialogTitle>
-                <p className="mt-1 truncate text-sm text-slate-500">{current ? `${current.name} / ${current.slug}` : "请选择项目"}</p>
+                <p className="mt-1 truncate text-sm text-slate-500">{current ? `${current.name} / Project ID ${current.sentry_project_id}` : "请选择项目"}</p>
               </div>
               <button className="btn h-8 w-8 px-0" onClick={close} title="关闭">
                 <X className="h-4 w-4" />
@@ -292,9 +295,10 @@ function OnboardingDrawer({
                 {message && <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{message}</div>}
 
                 <section className="grid gap-3 rounded-md border border-slate-200 p-4">
-                  <FieldRow label="上报地址" value={endpoint} copy={() => void copy(endpoint)} />
+                  <FieldRow label="DSN" value={dsn} copy={() => void copy(dsn)} />
+                  <FieldRow label="Ingest endpoint" value={ingestEndpoint} copy={() => void copy(ingestEndpoint)} />
                   <FieldRow label="Public Key" value={publicKey} copy={() => void copy(publicKey)} />
-                  <FieldRow label="项目标识" value={current.slug} copy={() => void copy(current.slug)} />
+                  <FieldRow label="Project ID" value={current.sentry_project_id} copy={() => void copy(current.sentry_project_id)} />
                 </section>
 
                 <section className="rounded-md border border-slate-200">
@@ -338,30 +342,24 @@ function FieldRow({ label, value, copy }: { label: string; value: string; copy: 
   );
 }
 
-function javascriptSnippet(endpoint: string, publicKey: string) {
-  return `window.addEventListener("error", (event) => {
-  fetch("${endpoint}", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Sentry-Key": "${publicKey}"
-    },
-    body: JSON.stringify({
-      event_id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      platform: "javascript",
-      level: "error",
-      message: event.message,
-      exception: {
-        type: event.error?.name || "Error",
-        value: event.error?.message || event.message,
-        stacktrace: event.error?.stack ? event.error.stack.split("\\n") : []
-      },
-      release: "1.0.0",
-      environment: "production"
-    })
-  });
-});`;
+function publicDsn(project: Project, publicKey: string) {
+  const dsn = new URL(window.location.origin);
+  dsn.username = publicKey;
+  dsn.pathname = `/${project.sentry_project_id}`;
+  dsn.search = "";
+  dsn.hash = "";
+  return dsn.toString();
+}
+
+function javascriptSnippet(dsn: string) {
+  return `import * as Sentry from "@sentry/browser";
+
+Sentry.init({
+  dsn: "${dsn}",
+  tracesSampleRate: 1.0,
+});
+
+Sentry.captureException(new Error("Sentry Lite test event"));`;
 }
 
 function KeyDrawer({
@@ -383,7 +381,7 @@ function KeyDrawer({
   keysPage: PageMeta;
   setKeyOffset: (offset: number) => void;
   copiedKey: string;
-  copyKey: (publicKey: string) => Promise<void>;
+  copyKey: (value: string) => Promise<void>;
   setKeyModal: (mode: "create" | ProjectKey | null) => void;
   setKeyStatus: (keyId: string, status: string) => Promise<void>;
 }) {
@@ -396,7 +394,7 @@ function KeyDrawer({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <DialogTitle className="text-lg font-semibold text-slate-950">DSN Key 管理</DialogTitle>
-                <p className="mt-1 truncate text-sm text-slate-500">{current ? `${current.name} / ${current.slug}` : "请选择项目"}</p>
+                <p className="mt-1 truncate text-sm text-slate-500">{current ? `${current.name} / Project ID ${current.sentry_project_id}` : "请选择项目"}</p>
               </div>
               <button className="btn h-8 w-8 px-0" onClick={close} title="关闭">
                 <X className="h-4 w-4" />
@@ -411,8 +409,11 @@ function KeyDrawer({
           <div className="min-h-0 flex-1 overflow-auto p-5">
             {current ? (
               <div className="grid gap-3">
-                {keys.map((key) => (
-                  <div key={key.id} className="grid gap-3 rounded-md border border-slate-200 p-3">
+                {keys.map((key) => {
+                  const dsn = publicDsn(current, key.public_key);
+
+                  return (
+                    <div key={key.id} className="grid gap-3 rounded-md border border-slate-200 p-3">
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-slate-900">{key.name}</div>
@@ -422,8 +423,8 @@ function KeyDrawer({
                         <button className="btn h-8 w-8 px-0" onClick={() => setKeyModal(key)} title="编辑 Key">
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button className="btn h-8 w-8 px-0" onClick={() => void copyKey(key.public_key)} title="复制 public key">
-                          {copiedKey === key.public_key ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        <button className="btn h-8 w-8 px-0" onClick={() => void copyKey(dsn)} title="复制 DSN">
+                          {copiedKey === dsn ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         </button>
                         <Switch
                           checked={key.status === "active"}
@@ -434,9 +435,17 @@ function KeyDrawer({
                         </Switch>
                       </div>
                     </div>
-                    <code className="block min-w-0 truncate rounded-md bg-slate-100 px-2 py-2 text-xs text-slate-700">{key.public_key}</code>
+                    <div className="grid gap-2">
+                      <div className="text-xs font-semibold text-slate-500">DSN</div>
+                      <code className="block min-w-0 truncate rounded-md bg-slate-100 px-2 py-2 text-xs text-slate-700">{dsn}</code>
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="text-xs font-semibold text-slate-500">Public Key</div>
+                      <code className="block min-w-0 truncate rounded-md bg-slate-100 px-2 py-2 text-xs text-slate-700">{key.public_key}</code>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
                 {keys.length === 0 && <Empty label="暂无 DSN Key" />}
               </div>
             ) : (
