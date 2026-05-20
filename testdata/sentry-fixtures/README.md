@@ -18,6 +18,7 @@ Current envelope fixtures:
 - `sessions.envelope`: Envelope with individual `session` and aggregate `sessions` items.
 - `transaction.envelope`: Performance transaction item with a child span.
 - `requests/event-attachments.http`: Project event attachment list and download requests.
+- `requests/transactions.http`: Internal performance transaction list/detail/span requests.
 
 ## Local Defaults
 

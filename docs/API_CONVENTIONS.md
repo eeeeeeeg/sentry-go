@@ -155,6 +155,18 @@ DELETE /api/0/projects/{organization_slug}/{project_slug}/events/{event_id}/atta
 - List/get/download require one of `event:read`, `event:write`, or `event:admin`.
 - Delete requires `event:admin`.
 - `download=true` returns the raw attachment bytes with `Content-Type` and `Content-Disposition`.
+
+## Performance Transaction API
+
+```text
+GET /api/projects/{project_id}/transactions
+GET /api/transactions/{event_id}
+GET /api/transactions/{event_id}/spans
+```
+
+- Transaction list supports `limit`, `offset`, `operation`, `environment`, `release`, `query`, `since`, and `until`.
+- `event_id` may be either Sentry's 32-character hex ID or canonical UUID format.
+- These are internal read APIs over the `sentry.transactions` and `sentry.spans` ClickHouse tables; Sentry Discover-compatible response shapes are not implemented yet.
 - At least one of `message`, `exception.type`, `exception.value`, `exception.values[].type`, or `exception.values[].value` is required.
 
 Accepted response:

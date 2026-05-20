@@ -24,6 +24,7 @@ type queryHandler struct {
 	projects *project.Repository
 	issues   *issue.Repository
 	events   *storage.EventQuerier
+	txns     *storage.TransactionQuerier
 	stats    *storage.StatsQuerier
 	alerts   *alert.Repository
 }
@@ -35,6 +36,9 @@ func (h queryHandler) register(r chi.Router) {
 	r.Patch("/api/issues/{issue_id}/status", h.updateIssueStatus)
 	r.Get("/api/projects/{project_id}/events", h.listEvents)
 	r.Get("/api/events/{event_id}", h.getEvent)
+	r.Get("/api/projects/{project_id}/transactions", h.listTransactions)
+	r.Get("/api/transactions/{event_id}", h.getTransaction)
+	r.Get("/api/transactions/{event_id}/spans", h.listTransactionSpans)
 	r.Get("/api/projects/{project_id}/stats/trend", h.statsTrend)
 	r.Get("/api/projects/{project_id}/stats/levels", h.statsLevels)
 	r.Get("/api/projects/{project_id}/stats/top-issues", h.statsTopIssues)
@@ -45,6 +49,64 @@ func (h queryHandler) register(r chi.Router) {
 	r.Get("/api/projects/{project_id}/alert-deliveries", h.listAlertDeliveries)
 	r.Patch("/api/alerts/{alert_id}/status", h.updateAlertStatus)
 	r.Post("/api/alerts/{alert_id}/test", h.testAlert)
+}
+
+func (h queryHandler) listTransactions(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	projectID, err := h.projects.ResolveProjectID(ctx, chi.URLParam(r, "project_id"))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project_not_found"})
+		return
+	}
+
+	limit := intQuery(r, "limit", 50)
+	offset := intQuery(r, "offset", 0)
+	items, total, err := h.txns.List(ctx, storage.TransactionQuery{
+		ProjectID:   projectID,
+		Operation:   r.URL.Query().Get("operation"),
+		Environment: r.URL.Query().Get("environment"),
+		Release:     r.URL.Query().Get("release"),
+		Query:       r.URL.Query().Get("query"),
+		Since:       timeQuery(r, "since"),
+		Until:       timeQuery(r, "until"),
+		Limit:       limit,
+		Offset:      offset,
+	})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "list_transactions_failed", "message": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, listResponse(items, total, limit, offset))
+}
+
+func (h queryHandler) getTransaction(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	item, err := h.txns.Get(ctx, chi.URLParam(r, "event_id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "transaction_not_found"})
+		return
+	}
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "get_transaction_failed", "message": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h queryHandler) listTransactionSpans(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	items, err := h.txns.ListSpans(ctx, chi.URLParam(r, "event_id"))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "list_transaction_spans_failed", "message": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h queryHandler) listIssues(w http.ResponseWriter, r *http.Request) {

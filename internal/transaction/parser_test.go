@@ -37,7 +37,7 @@ func TestParseTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if transaction.EventID != "018f3a8b42147c9fb2f57b7a7f534104" || transaction.TransactionName != "GET /api/users" {
+	if transaction.EventID != "018f3a8b-4214-7c9f-b2f5-7b7a7f534104" || transaction.TransactionName != "GET /api/users" {
 		t.Fatalf("transaction = %#v", transaction)
 	}
 	if transaction.TraceID != "4c79f60c11214eb38604f4ae0781bfb2" || transaction.Source != "route" || transaction.DurationMS != 1250 {

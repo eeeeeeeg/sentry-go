@@ -1,0 +1,12 @@
+GET /api/projects/web/transactions?limit=20&operation=http.server HTTP/1.1
+Host: localhost:8080
+
+###
+
+GET /api/transactions/018f3a8b42147c9fb2f57b7a7f534104 HTTP/1.1
+Host: localhost:8080
+
+###
+
+GET /api/transactions/018f3a8b42147c9fb2f57b7a7f534104/spans HTTP/1.1
+Host: localhost:8080

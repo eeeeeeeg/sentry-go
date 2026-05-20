@@ -58,7 +58,7 @@ func ParseRawMessage(body []byte) (TransactionRecord, []SpanRecord, error) {
 	if err := json.Unmarshal(raw.Payload, &payload); err != nil {
 		return TransactionRecord{}, nil, fmt.Errorf("decode transaction payload: %w", err)
 	}
-	eventID := firstNonEmpty(payload.EventID, raw.EventID)
+	eventID := canonicalEventID(firstNonEmpty(payload.EventID, raw.EventID))
 	if eventID == "" {
 		return TransactionRecord{}, nil, fmt.Errorf("transaction event_id is required")
 	}
@@ -185,6 +185,19 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func canonicalEventID(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) != 32 {
+		return value
+	}
+	for _, ch := range value {
+		if (ch < '0' || ch > '9') && (ch < 'a' || ch > 'f') && (ch < 'A' || ch > 'F') {
+			return value
+		}
+	}
+	return fmt.Sprintf("%s-%s-%s-%s-%s", value[0:8], value[8:12], value[12:16], value[16:20], value[20:32])
 }
 
 func emptyMap(value map[string]any) map[string]any {

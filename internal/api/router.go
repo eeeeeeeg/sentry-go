@@ -62,6 +62,7 @@ func NewRouter(deps *platform.Dependencies) http.Handler {
 		projects: project.NewRepository(deps.Postgres),
 		issues:   issue.NewRepository(deps.Postgres),
 		events:   storage.NewEventQuerier(deps.ClickHouse),
+		txns:     storage.NewTransactionQuerier(deps.ClickHouse),
 		stats:    storage.NewStatsQuerier(deps.ClickHouse),
 		alerts:   alert.NewRepository(deps.Postgres),
 	}.register(r)
