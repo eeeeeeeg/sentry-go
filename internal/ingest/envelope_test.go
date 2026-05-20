@@ -199,6 +199,30 @@ func TestDecodeIngestPayloadAcceptsProfileFixture(t *testing.T) {
 	}
 }
 
+func TestDecodeIngestPayloadAcceptsReplayFixture(t *testing.T) {
+	body := testutil.Fixture(t, "envelopes", "replay.envelope")
+
+	got, err := decodeIngestPayload(body)
+	if err != nil {
+		t.Fatalf("decodeIngestPayload() error = %v", err)
+	}
+	if got.HasEvent {
+		t.Fatal("decodeIngestPayload() marked replay as error event")
+	}
+	if got.EventID != "018f3a8b42147c9fb2f57b7a7f534105" {
+		t.Fatalf("EventID = %q", got.EventID)
+	}
+	if len(got.Items) != 2 {
+		t.Fatalf("Items length = %d", len(got.Items))
+	}
+	if got.Items[0].Type != "replay_event" || got.Items[0].Category != "replay" {
+		t.Fatalf("first item = %#v", got.Items[0])
+	}
+	if got.Items[1].Type != "replay_recording" || got.Items[1].Category != "replay" {
+		t.Fatalf("second item = %#v", got.Items[1])
+	}
+}
+
 func TestReadLimitedRequestBodyAcceptsGzip(t *testing.T) {
 	var compressed bytes.Buffer
 	writer := gzip.NewWriter(&compressed)

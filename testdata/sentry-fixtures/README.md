@@ -18,6 +18,7 @@ Current envelope fixtures:
 - `sessions.envelope`: Envelope with individual `session` and aggregate `sessions` items.
 - `transaction.envelope`: Performance transaction item with a child span.
 - `profile.envelope`: Transaction profile item associated with a transaction.
+- `replay.envelope`: Session Replay metadata and recording segment items.
 - `requests/event-attachments.http`: Project event attachment list and download requests.
 - `requests/transactions.http`: Internal performance transaction list/detail/span requests.
 

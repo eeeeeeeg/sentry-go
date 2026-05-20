@@ -194,6 +194,29 @@ CREATE TABLE IF NOT EXISTS event_attachments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS replay_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_key_id UUID REFERENCES project_keys(id) ON DELETE SET NULL,
+    replay_id TEXT NOT NULL,
+    event_id TEXT,
+    trace_id TEXT,
+    transaction_id TEXT,
+    segment_id INTEGER NOT NULL DEFAULT 0,
+    item_type TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    sdk_name TEXT,
+    sdk_version TEXT,
+    content_type TEXT NOT NULL DEFAULT 'application/json',
+    size_bytes BIGINT NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    payload BYTEA NOT NULL,
+    message_id TEXT NOT NULL UNIQUE,
+    CHECK (item_type IN ('replay_event', 'replay_recording'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_project_keys_project_id ON project_keys(project_id);
 CREATE INDEX IF NOT EXISTS idx_issues_project_status_last_seen ON issues(project_id, status, last_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_issues_project_environment ON issues(project_id, environment);
@@ -206,6 +229,8 @@ CREATE INDEX IF NOT EXISTS idx_release_deploys_release_finished ON release_deplo
 CREATE INDEX IF NOT EXISTS idx_alerts_project_event ON alerts(project_id, event_type, status);
 CREATE INDEX IF NOT EXISTS idx_alert_deliveries_issue_created ON alert_deliveries(issue_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_event_attachments_project_event ON event_attachments(project_id, event_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_replay_items_project_replay ON replay_items(project_id, replay_id, segment_id, item_type);
+CREATE INDEX IF NOT EXISTS idx_replay_items_project_received ON replay_items(project_id, received_at DESC);
 
 INSERT INTO organizations (slug, name)
 VALUES ('demo', 'Demo Organization')

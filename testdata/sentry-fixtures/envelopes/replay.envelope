@@ -1,0 +1,5 @@
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534105","sdk":{"name":"sentry.javascript.browser","version":"10.45.0"}}
+{"type":"replay_event"}
+{"replay_id":"018f3a8b42147c9fb2f57b7a7f534105","segment_id":0,"timestamp":"2026-05-20T10:00:00Z","urls":["https://example.com/users"],"contexts":{"trace":{"trace_id":"4c79f60c11214eb38604f4ae0781bfb2"}}}
+{"type":"replay_recording","content_type":"application/json"}
+[{"type":5,"timestamp":1747735200,"data":{"tag":"breadcrumb","payload":{"message":"clicked"}}}]
