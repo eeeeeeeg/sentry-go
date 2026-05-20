@@ -119,6 +119,19 @@ services:
       redis:
         condition: service_healthy
 
+  worker-attachment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/worker-attachment"]
+    env_file:
+      - .env.example
+    depends_on:
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     environment:

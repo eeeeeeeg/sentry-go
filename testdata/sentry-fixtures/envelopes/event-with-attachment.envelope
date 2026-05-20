@@ -1,0 +1,5 @@
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534103","sdk":{"name":"sentry.javascript.browser","version":"10.45.0"}}
+{"type":"event"}
+{"event_id":"018f3a8b42147c9fb2f57b7a7f534103","timestamp":"2026-05-20T10:00:00Z","level":"error","platform":"javascript","message":"event with attachment"}
+{"type":"attachment","length":11,"content_type":"text/plain","filename":"debug.log","attachment_type":"event.attachment"}
+hello world

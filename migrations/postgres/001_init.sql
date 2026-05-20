@@ -178,6 +178,22 @@ CREATE TABLE IF NOT EXISTS alert_deliveries (
     CHECK (status IN ('sent', 'failed', 'suppressed'))
 );
 
+CREATE TABLE IF NOT EXISTS event_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_key_id UUID REFERENCES project_keys(id) ON DELETE SET NULL,
+    event_id TEXT,
+    message_id TEXT NOT NULL UNIQUE,
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+    attachment_type TEXT,
+    sha1 TEXT NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    content BYTEA NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_project_keys_project_id ON project_keys(project_id);
 CREATE INDEX IF NOT EXISTS idx_issues_project_status_last_seen ON issues(project_id, status, last_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_issues_project_environment ON issues(project_id, environment);
@@ -189,6 +205,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_release_files_unique ON release_files(rele
 CREATE INDEX IF NOT EXISTS idx_release_deploys_release_finished ON release_deploys(release_id, date_finished DESC);
 CREATE INDEX IF NOT EXISTS idx_alerts_project_event ON alerts(project_id, event_type, status);
 CREATE INDEX IF NOT EXISTS idx_alert_deliveries_issue_created ON alert_deliveries(issue_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_attachments_project_event ON event_attachments(project_id, event_id, created_at DESC);
 
 INSERT INTO organizations (slug, name)
 VALUES ('demo', 'Demo Organization')

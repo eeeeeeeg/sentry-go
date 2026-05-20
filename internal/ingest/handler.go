@@ -60,7 +60,7 @@ type RawEnvelopeItemMessage struct {
 	PublicKey      string               `json:"public_key"`
 	EventID        string               `json:"event_id,omitempty"`
 	Item           EnvelopeItemMetadata `json:"item"`
-	Payload        json.RawMessage      `json:"payload"`
+	Payload        []byte               `json:"payload"`
 }
 
 type acceptedResponse struct {

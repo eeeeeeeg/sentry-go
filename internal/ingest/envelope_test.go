@@ -105,6 +105,31 @@ func TestDecodeIngestPayloadRecordsAllEnvelopeItems(t *testing.T) {
 	}
 }
 
+func TestDecodeIngestPayloadKeepsItemsAfterEvent(t *testing.T) {
+	body := testutil.Fixture(t, "envelopes", "event-with-attachment.envelope")
+
+	got, err := decodeIngestPayload(body)
+	if err != nil {
+		t.Fatalf("decodeIngestPayload() error = %v", err)
+	}
+	if !got.HasEvent {
+		t.Fatal("decodeIngestPayload() did not detect event item")
+	}
+	if len(got.Items) != 2 {
+		t.Fatalf("Items length = %d", len(got.Items))
+	}
+	attachment := got.Items[1]
+	if attachment.Type != "attachment" || attachment.Category != "attachment" {
+		t.Fatalf("attachment item = %#v", attachment)
+	}
+	if attachment.Filename != "debug.log" || attachment.ContentType != "text/plain" || attachment.Attachment != "event.attachment" {
+		t.Fatalf("attachment metadata = %#v", attachment.EnvelopeItemMetadata)
+	}
+	if string(attachment.Payload) != "hello world" {
+		t.Fatalf("attachment payload = %q", string(attachment.Payload))
+	}
+}
+
 func TestDecodeIngestPayloadAcceptsEnvelopeWithoutEvent(t *testing.T) {
 	body := []byte("{}\n{\"type\":\"client_report\"}\n{}\n")
 

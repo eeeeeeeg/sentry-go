@@ -25,7 +25,7 @@ api:
 	docker compose up --build api
 
 workers:
-	docker compose up --build worker-normalize worker-grouping worker-event-writer worker-alert worker-session worker-outcome
+	docker compose up --build worker-normalize worker-grouping worker-event-writer worker-alert worker-attachment worker-session worker-outcome
 
 deploy:
 	powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1

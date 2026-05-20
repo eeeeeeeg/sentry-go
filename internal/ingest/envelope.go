@@ -23,7 +23,7 @@ type decodedEnvelope struct {
 
 type EnvelopeItem struct {
 	EnvelopeItemMetadata
-	Payload json.RawMessage `json:"payload,omitempty"`
+	Payload []byte `json:"payload,omitempty"`
 }
 
 type EnvelopeItemMetadata struct {
@@ -124,7 +124,7 @@ func decodeSentryEnvelope(body []byte) (decodedEnvelope, error) {
 		itemMeta := envelopeItemMetadata(itemHeader, len(itemPayload))
 		decoded.Items = append(decoded.Items, EnvelopeItem{
 			EnvelopeItemMetadata: itemMeta,
-			Payload:              json.RawMessage(bytes.TrimSpace(itemPayload)),
+			Payload:              itemPayload,
 		})
 		if itemMeta.Type != "event" {
 			continue
@@ -138,25 +138,18 @@ func decodeSentryEnvelope(body []byte) (decodedEnvelope, error) {
 			return decodedEnvelope{}, err
 		}
 
-		sdkName, sdkVersion := sdkFromEnvelopeHeader(envelopeHeader)
-		eventID := firstNonEmpty(extractEventID(itemPayload), envelopeEventID)
-		return decodedEnvelope{
-			EventID:    eventID,
-			SDKName:    sdkName,
-			SDKVersion: sdkVersion,
-			HasEvent:   true,
-			Items:      decoded.Items,
-			Payload:    itemPayload,
-		}, nil
+		decoded.EventID = firstNonEmpty(extractEventID(itemPayload), envelopeEventID)
+		decoded.HasEvent = true
+		decoded.Payload = itemPayload
 	}
 
 	sdkName, sdkVersion := sdkFromEnvelopeHeader(envelopeHeader)
-	return decodedEnvelope{
-		EventID:    envelopeEventID,
-		SDKName:    sdkName,
-		SDKVersion: sdkVersion,
-		Items:      decoded.Items,
-	}, nil
+	decoded.SDKName = sdkName
+	decoded.SDKVersion = sdkVersion
+	if decoded.EventID == "" {
+		decoded.EventID = envelopeEventID
+	}
+	return decoded, nil
 }
 
 func readJSONLine(reader *bufio.Reader) ([]byte, error) {

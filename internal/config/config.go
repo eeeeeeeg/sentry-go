@@ -40,6 +40,7 @@ type Config struct {
 	NormalizeConsumer      string
 	GroupingConsumer       string
 	EventWriterConsumer    string
+	AttachmentConsumer     string
 	SessionConsumer        string
 	OutcomeConsumer        string
 	AlertConsumer          string
@@ -112,6 +113,7 @@ func Load() (Config, error) {
 		NormalizeConsumer:      getenv("NORMALIZE_CONSUMER", "worker-normalize"),
 		GroupingConsumer:       getenv("GROUPING_CONSUMER", "worker-grouping"),
 		EventWriterConsumer:    getenv("EVENT_WRITER_CONSUMER", "worker-event-writer"),
+		AttachmentConsumer:     getenv("ATTACHMENT_CONSUMER", "worker-attachment"),
 		SessionConsumer:        getenv("SESSION_CONSUMER", "worker-session"),
 		OutcomeConsumer:        getenv("OUTCOME_CONSUMER", "worker-outcome"),
 		AlertConsumer:          getenv("ALERT_CONSUMER", "worker-alert"),
