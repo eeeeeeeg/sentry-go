@@ -40,6 +40,7 @@ type Config struct {
 	NormalizeConsumer      string
 	GroupingConsumer       string
 	EventWriterConsumer    string
+	OutcomeConsumer        string
 	AlertConsumer          string
 	AlertSuppressWindow    time.Duration
 
@@ -110,6 +111,7 @@ func Load() (Config, error) {
 		NormalizeConsumer:      getenv("NORMALIZE_CONSUMER", "worker-normalize"),
 		GroupingConsumer:       getenv("GROUPING_CONSUMER", "worker-grouping"),
 		EventWriterConsumer:    getenv("EVENT_WRITER_CONSUMER", "worker-event-writer"),
+		OutcomeConsumer:        getenv("OUTCOME_CONSUMER", "worker-outcome"),
 		AlertConsumer:          getenv("ALERT_CONSUMER", "worker-alert"),
 
 		MaxEnvelopeBytes:    maxEnvelopeBytes,

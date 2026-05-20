@@ -129,10 +129,10 @@ Required request properties:
 
 - DSN public key must be provided through `X-Sentry-Key`, `sentry_key`, `X-DSN`, `X-Sentry-Auth`, `Authorization: DSN ...`, or `Authorization: Sentry sentry_key=...`.
 - Body size must not exceed `MAX_ENVELOPE_BYTES`.
-- Body must be either a non-empty JSON event object or a Sentry SDK envelope containing an `event` item.
+- Body must be either a non-empty JSON event object or a Sentry SDK envelope containing a supported ingest item.
 - `Content-Encoding: gzip` is accepted.
 - Browser SDK preflight requests are accepted through `OPTIONS`.
-- Envelope item types that are not yet persisted, such as `session` or `client_report`, are accepted and ignored when no `event` item is present.
+- Envelope item types that are not yet fully processed are accepted as raw envelope items; `client_report` items are routed to the outcome worker.
 
 Basic payload validation:
 

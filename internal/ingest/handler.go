@@ -143,10 +143,12 @@ func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
 	}
 	writeCategoryRateHeaders(w, rateResults)
 	if eventRateLimited(rateResults) {
+		h.publishRateLimitOutcomes(projectKey, projectRef, decoded, rateResults, body, r)
 		writeSentryRateLimitHeaders(w, rateResults.firstRejected())
 		writeError(w, http.StatusTooManyRequests, "rate_limited", "event rate limit exceeded")
 		return
 	}
+	h.publishRateLimitOutcomes(projectKey, projectRef, decoded, rateResults, body, r)
 	decoded = decoded.filterAllowedItems(rateResults)
 	if !decoded.HasEvent {
 		if err := h.publishEnvelopeItems(projectKey, projectRef, decoded, body, r); err != nil {
@@ -251,6 +253,45 @@ func (h *Handler) publishEnvelopeItems(projectKey project.ProjectKey, projectRef
 		}
 	}
 	return nil
+}
+
+func (h *Handler) publishRateLimitOutcomes(projectKey project.ProjectKey, projectRef string, decoded decodedEnvelope, results categoryRateResults, originalBody []byte, r *http.Request) {
+	receivedAt := time.Now().UTC()
+	for index, item := range decoded.Items {
+		result, ok := results[item.Category]
+		if !ok || result.Allowed {
+			continue
+		}
+		raw := map[string]any{
+			"message_id":     itemMessageID(decoded.EventID, item, index, originalBody) + "-outcome",
+			"received_at":    receivedAt,
+			"sdk_name":       firstNonEmpty(decoded.SDKName, r.Header.Get("X-SDK-Name")),
+			"sdk_version":    firstNonEmpty(decoded.SDKVersion, r.Header.Get("X-SDK-Version")),
+			"project_id":     projectKey.ProjectID,
+			"project_key_id": projectKey.KeyID,
+			"event_id":       decoded.EventID,
+			"category":       item.Category,
+			"reason":         "rate_limited",
+			"quantity":       1,
+			"source":         "server",
+		}
+		body, err := json.Marshal(raw)
+		if err != nil {
+			slog.Error("marshal outcome", "error", err, "project_id", projectKey.ProjectID)
+			continue
+		}
+		msg := nats.NewMsg(h.cfg.RawOutcomeSubject)
+		msg.Data = body
+		msg.Header.Set("content-type", "application/json")
+		msg.Header.Set("project-id", projectKey.ProjectID)
+		msg.Header.Set("project-key-id", projectKey.KeyID)
+		msg.Header.Set("category", item.Category)
+		msg.Header.Set("reason", "rate_limited")
+		msg.Header.Set(nats.MsgIdHdr, fmt.Sprintf("%s-outcome", itemMessageID(decoded.EventID, item, index, originalBody)))
+		if _, err := h.js.PublishMsg(msg); err != nil {
+			slog.Error("publish outcome", "error", err, "project_id", projectKey.ProjectID, "project_ref", projectRef)
+		}
+	}
 }
 
 func (h *Handler) subjectForEnvelopeItem(item EnvelopeItemMetadata) string {

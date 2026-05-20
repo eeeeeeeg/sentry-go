@@ -81,3 +81,21 @@ CREATE TABLE IF NOT EXISTS sentry.event_users
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (project_id, user_id, timestamp, event_id);
+
+CREATE TABLE IF NOT EXISTS sentry.outcomes
+(
+    project_id UUID,
+    project_key_id UUID,
+    event_id String,
+    timestamp DateTime64(3, 'UTC'),
+    received_at DateTime64(3, 'UTC') DEFAULT now64(3),
+    category LowCardinality(String),
+    reason LowCardinality(String),
+    quantity UInt64,
+    source LowCardinality(String),
+    sdk_name LowCardinality(String),
+    sdk_version String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY (project_id, category, reason, timestamp);
