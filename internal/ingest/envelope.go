@@ -35,6 +35,34 @@ type EnvelopeItemMetadata struct {
 	Attachment  string `json:"attachment_type,omitempty"`
 }
 
+func (d decodedEnvelope) filterAllowedItems(rates categoryRateResults) decodedEnvelope {
+	if len(rates) == 0 {
+		return d
+	}
+	filtered := make([]EnvelopeItem, 0, len(d.Items))
+	hasEvent := false
+	var eventPayload []byte
+	for _, item := range d.Items {
+		result, ok := rates[item.Category]
+		if ok && !result.Allowed {
+			continue
+		}
+		filtered = append(filtered, item)
+		if item.Type == "event" {
+			hasEvent = true
+			eventPayload = item.Payload
+		}
+	}
+	d.Items = filtered
+	d.HasEvent = hasEvent
+	if hasEvent {
+		d.Payload = eventPayload
+	} else {
+		d.Payload = nil
+	}
+	return d
+}
+
 func decodeIngestPayload(body []byte) (decodedEnvelope, error) {
 	trimmed := bytes.TrimSpace(body)
 	if len(trimmed) == 0 {

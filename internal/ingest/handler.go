@@ -68,6 +68,13 @@ type acceptedResponse struct {
 	Status string `json:"status"`
 }
 
+type categoryRateResult struct {
+	Category string
+	quota.Result
+}
+
+type categoryRateResults map[string]categoryRateResult
+
 func NewHandler(cfg config.Config, projects *project.Repository, limiter *quota.Limiter, js nats.JetStreamContext) *Handler {
 	return &Handler{
 		cfg:      cfg,
@@ -118,24 +125,6 @@ func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit := projectKey.RateLimitPerMinute
-	if limit <= 0 {
-		limit = h.cfg.DefaultRateLimit
-	}
-	rateName := fmt.Sprintf("project:%s:key:%s:ip:%s", projectKey.ProjectID, projectKey.KeyID, clientIP(r))
-	rate, err := h.limiter.Allow(ctx, rateName, limit)
-	if err != nil {
-		slog.Error("rate limit check failed", "error", err, "project_id", projectKey.ProjectID)
-		writeError(w, http.StatusServiceUnavailable, "rate_limit_unavailable", "rate limit service unavailable")
-		return
-	}
-	writeRateHeaders(w, rate)
-	if !rate.Allowed {
-		writeSentryRateLimitHeaders(w, rate)
-		writeError(w, http.StatusTooManyRequests, "rate_limited", "event rate limit exceeded")
-		return
-	}
-
 	body, err := readLimitedRequestBody(r, h.cfg.MaxEnvelopeBytes)
 	if err != nil {
 		writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", err.Error())
@@ -146,6 +135,19 @@ func (h *Handler) HandleEnvelope(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_payload", err.Error())
 		return
 	}
+	rateResults, err := h.allowEnvelopeCategories(ctx, projectKey, decoded, clientIP(r))
+	if err != nil {
+		slog.Error("rate limit check failed", "error", err, "project_id", projectKey.ProjectID)
+		writeError(w, http.StatusServiceUnavailable, "rate_limit_unavailable", "rate limit service unavailable")
+		return
+	}
+	writeCategoryRateHeaders(w, rateResults)
+	if eventRateLimited(rateResults) {
+		writeSentryRateLimitHeaders(w, rateResults.firstRejected())
+		writeError(w, http.StatusTooManyRequests, "rate_limited", "event rate limit exceeded")
+		return
+	}
+	decoded = decoded.filterAllowedItems(rateResults)
 	if !decoded.HasEvent {
 		if err := h.publishEnvelopeItems(projectKey, projectRef, decoded, body, r); err != nil {
 			slog.Error("publish envelope items", "error", err, "project_id", projectKey.ProjectID)
@@ -270,6 +272,57 @@ func (h *Handler) subjectForEnvelopeItem(item EnvelopeItemMetadata) string {
 	}
 }
 
+func (h *Handler) allowEnvelopeCategories(ctx context.Context, projectKey project.ProjectKey, decoded decodedEnvelope, remoteIP string) (categoryRateResults, error) {
+	limit := projectKey.RateLimitPerMinute
+	if limit <= 0 {
+		limit = h.cfg.DefaultRateLimit
+	}
+	results := categoryRateResults{}
+	for _, category := range envelopeCategories(decoded.Items) {
+		rateName := fmt.Sprintf("project:%s:key:%s:ip:%s:category:%s", projectKey.ProjectID, projectKey.KeyID, remoteIP, category)
+		rate, err := h.limiter.Allow(ctx, rateName, limit)
+		if err != nil {
+			return nil, err
+		}
+		results[category] = categoryRateResult{
+			Category: category,
+			Result:   rate,
+		}
+	}
+	return results, nil
+}
+
+func envelopeCategories(items []EnvelopeItem) []string {
+	seen := map[string]struct{}{}
+	categories := make([]string, 0, len(items))
+	for _, item := range items {
+		category := item.Category
+		if category == "" {
+			category = "default"
+		}
+		if _, ok := seen[category]; ok {
+			continue
+		}
+		seen[category] = struct{}{}
+		categories = append(categories, category)
+	}
+	return categories
+}
+
+func eventRateLimited(results categoryRateResults) bool {
+	result, ok := results["error"]
+	return ok && !result.Allowed
+}
+
+func (r categoryRateResults) firstRejected() categoryRateResult {
+	for _, result := range r {
+		if !result.Allowed {
+			return result
+		}
+	}
+	return categoryRateResult{}
+}
+
 func readLimitedRequestBody(r *http.Request, maxBytes int64) ([]byte, error) {
 	defer r.Body.Close()
 
@@ -330,13 +383,31 @@ func writeRateHeaders(w http.ResponseWriter, result quota.Result) {
 	}
 }
 
-func writeSentryRateLimitHeaders(w http.ResponseWriter, result quota.Result) {
+func writeCategoryRateHeaders(w http.ResponseWriter, results categoryRateResults) {
+	if len(results) == 0 {
+		return
+	}
+	if result, ok := results["error"]; ok {
+		writeRateHeaders(w, result.Result)
+		return
+	}
+	for _, result := range results {
+		writeRateHeaders(w, result.Result)
+		return
+	}
+}
+
+func writeSentryRateLimitHeaders(w http.ResponseWriter, result categoryRateResult) {
 	retryAfter := int(result.ResetAfter.Seconds())
 	if retryAfter <= 0 {
 		retryAfter = 60
 	}
 	w.Header().Set("Retry-After", fmt.Sprintf("%d", retryAfter))
-	w.Header().Set("X-Sentry-Rate-Limits", fmt.Sprintf("%d:error:project:rate_limited", retryAfter))
+	category := result.Category
+	if category == "" {
+		category = "default"
+	}
+	w.Header().Set("X-Sentry-Rate-Limits", fmt.Sprintf("%d:%s:project:rate_limited", retryAfter, category))
 }
 
 func writeIngestCORS(w http.ResponseWriter) {
