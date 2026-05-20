@@ -53,6 +53,23 @@ services:
       redis:
         condition: service_healthy
 
+  worker-transaction:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/worker-transaction"]
+    env_file:
+      - .env.example
+    depends_on:
+      nats:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   worker-grouping:
     build:
       context: .

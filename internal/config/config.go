@@ -38,6 +38,7 @@ type Config struct {
 	AlertEventSubject      string
 	DeadLetterSubject      string
 	NormalizeConsumer      string
+	TransactionConsumer    string
 	GroupingConsumer       string
 	EventWriterConsumer    string
 	AttachmentConsumer     string
@@ -111,6 +112,7 @@ func Load() (Config, error) {
 		AlertEventSubject:      getenv("ALERT_EVENT_SUBJECT", "alerts.triggered"),
 		DeadLetterSubject:      getenv("DEAD_LETTER_SUBJECT", "events.dlq"),
 		NormalizeConsumer:      getenv("NORMALIZE_CONSUMER", "worker-normalize"),
+		TransactionConsumer:    getenv("TRANSACTION_CONSUMER", "worker-transaction"),
 		GroupingConsumer:       getenv("GROUPING_CONSUMER", "worker-grouping"),
 		EventWriterConsumer:    getenv("EVENT_WRITER_CONSUMER", "worker-event-writer"),
 		AttachmentConsumer:     getenv("ATTACHMENT_CONSUMER", "worker-attachment"),

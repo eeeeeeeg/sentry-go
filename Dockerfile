@@ -15,6 +15,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/api ./cmd/api \
     && CGO_ENABLED=0 GOOS=linux go build -o /out/worker-normalize ./cmd/worker-normalize \
+    && CGO_ENABLED=0 GOOS=linux go build -o /out/worker-transaction ./cmd/worker-transaction \
     && CGO_ENABLED=0 GOOS=linux go build -o /out/worker-grouping ./cmd/worker-grouping \
     && CGO_ENABLED=0 GOOS=linux go build -o /out/worker-alert ./cmd/worker-alert \
     && CGO_ENABLED=0 GOOS=linux go build -o /out/worker-attachment ./cmd/worker-attachment \
@@ -29,6 +30,7 @@ USER app
 
 COPY --from=build /out/api /api
 COPY --from=build /out/worker-normalize /worker-normalize
+COPY --from=build /out/worker-transaction /worker-transaction
 COPY --from=build /out/worker-grouping /worker-grouping
 COPY --from=build /out/worker-alert /worker-alert
 COPY --from=build /out/worker-attachment /worker-attachment

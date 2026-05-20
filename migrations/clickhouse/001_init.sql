@@ -126,3 +126,54 @@ CREATE TABLE IF NOT EXISTS sentry.sessions
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(bucket)
 ORDER BY (project_id, release, environment, bucket, status);
+
+CREATE TABLE IF NOT EXISTS sentry.transactions
+(
+    event_id UUID,
+    organization_id UUID,
+    project_id UUID,
+    project_key_id UUID,
+    trace_id String,
+    span_id String,
+    parent_span_id String,
+    transaction String,
+    source LowCardinality(String),
+    operation LowCardinality(String),
+    status LowCardinality(String),
+    start_timestamp DateTime64(3, 'UTC'),
+    end_timestamp DateTime64(3, 'UTC'),
+    duration_ms Float64,
+    received_at DateTime64(3, 'UTC') DEFAULT now64(3),
+    platform LowCardinality(String),
+    release String,
+    environment LowCardinality(String),
+    sdk_name LowCardinality(String),
+    sdk_version String,
+    span_count UInt64,
+    measurements String,
+    contexts String,
+    tags String,
+    raw_transaction String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(start_timestamp)
+ORDER BY (project_id, transaction, start_timestamp, event_id);
+
+CREATE TABLE IF NOT EXISTS sentry.spans
+(
+    event_id UUID,
+    project_id UUID,
+    trace_id String,
+    span_id String,
+    parent_span_id String,
+    operation LowCardinality(String),
+    description String,
+    status LowCardinality(String),
+    start_timestamp DateTime64(3, 'UTC'),
+    end_timestamp DateTime64(3, 'UTC'),
+    duration_ms Float64,
+    data String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(start_timestamp)
+ORDER BY (project_id, trace_id, start_timestamp, span_id);
