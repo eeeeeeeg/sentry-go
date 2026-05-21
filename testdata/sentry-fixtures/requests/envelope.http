@@ -1,7 +1,7 @@
 POST /api/1/envelope/ HTTP/1.1
 Host: localhost:8080
 Content-Type: application/x-sentry-envelope
-X-Sentry-Auth: Sentry sentry_version=7, sentry_client=sentry.javascript.browser/10.52.0, sentry_key=demo-public-key
+X-Sentry-Auth: Sentry sentry_version=7, sentry_client=sentry.javascript.browser/10.52.0, sentry_key=0123456789abcdef0123456789abcdef
 
 {"event_id":"018f3a8b42147c9fb2f57b7a7f534101","sdk":{"name":"sentry.javascript.browser","version":"10.52.0"}}
 {"type":"event","length":405}

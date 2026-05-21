@@ -38,6 +38,15 @@ SELECT setval(
 )`,
 		`ALTER TABLE projects ALTER COLUMN sentry_project_id SET NOT NULL`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_sentry_project_id ON projects(sentry_project_id)`,
+		`
+UPDATE project_keys
+SET public_key = '0123456789abcdef0123456789abcdef'
+WHERE public_key = 'demo-public-key'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM project_keys existing
+      WHERE existing.public_key = '0123456789abcdef0123456789abcdef'
+  )`,
 	}
 	for _, statement := range statements {
 		if _, err := db.Exec(ctx, statement); err != nil {

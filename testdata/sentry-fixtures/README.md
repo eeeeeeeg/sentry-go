@@ -30,8 +30,8 @@ The default migration seeds:
 - organization: `demo`
 - project: `web`
 - Sentry project ID: `1`
-- DSN public key: `demo-public-key`
-- public DSN: `http://demo-public-key@localhost:8080/1`
+- DSN public key: `0123456789abcdef0123456789abcdef`
+- public DSN: `http://0123456789abcdef0123456789abcdef@localhost:8080/1`
 - API bearer token: `demo-api-token`
 
 ## Validation Rule

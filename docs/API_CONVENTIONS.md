@@ -125,7 +125,7 @@ Sentry SDK DSN format follows Sentry's documented shape:
 The local seeded demo project uses:
 
 ```text
-http://demo-public-key@localhost:8080/1
+http://0123456789abcdef0123456789abcdef@localhost:8080/1
 ```
 
 The SDK derives the ingest URL from this DSN and sends envelopes to `/api/1/envelope/`.

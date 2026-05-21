@@ -120,8 +120,8 @@ UI 使用 React Router 分层菜单，Axios 请求统一封装在 `ui/src/http.t
 
 ```text
 sentry_project_id: 1
-public_key: demo-public-key
-dsn: http://demo-public-key@localhost:8080/1
+public_key: 0123456789abcdef0123456789abcdef
+dsn: http://0123456789abcdef0123456789abcdef@localhost:8080/1
 ```
 
 示例请求：
@@ -129,7 +129,7 @@ dsn: http://demo-public-key@localhost:8080/1
 ```bash
 curl -i http://localhost:8080/api/1/envelope/ \
   -H "Content-Type: application/json" \
-  -H "X-Sentry-Key: demo-public-key" \
+  -H "X-Sentry-Key: 0123456789abcdef0123456789abcdef" \
   -H "X-SDK-Name: your-sdk-js" \
   -H "X-SDK-Version: 0.1.0" \
   -d '{

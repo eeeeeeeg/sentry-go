@@ -246,7 +246,7 @@ WHERE slug = 'demo'
 ON CONFLICT (organization_id, slug) DO NOTHING;
 
 INSERT INTO project_keys (project_id, public_key, name)
-SELECT id, 'demo-public-key', 'Default DSN Key'
+SELECT id, '0123456789abcdef0123456789abcdef', 'Default DSN Key'
 FROM projects
 WHERE slug = 'web'
 ON CONFLICT (public_key) DO NOTHING;

@@ -1,7 +1,7 @@
 param(
     [string]$BaseUrl = "http://localhost:8080",
     [string]$ProjectId = "1",
-    [string]$PublicKey = "demo-public-key",
+    [string]$PublicKey = "0123456789abcdef0123456789abcdef",
     [string]$WebhookUrl = ""
 )
 
