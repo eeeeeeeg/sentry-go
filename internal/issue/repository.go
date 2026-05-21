@@ -191,7 +191,7 @@ SELECT
     COALESCE(i.environment, '')
 FROM issues i
 JOIN projects p ON p.id = i.project_id
-WHERE (p.id::text = $1 OR p.slug = $1)
+WHERE (p.id::text = $1 OR p.slug = $1 OR p.sentry_project_id = $1)
   AND ($2 = 'all' OR i.status = $2)
   AND ($3 = '' OR i.level = $3)
   AND ($4 = '' OR i.environment = $4)
@@ -245,7 +245,7 @@ func (r *Repository) Count(ctx context.Context, opts ListOptions) (int, error) {
 SELECT COUNT(*)
 FROM issues i
 JOIN projects p ON p.id = i.project_id
-WHERE (p.id::text = $1 OR p.slug = $1)
+WHERE (p.id::text = $1 OR p.slug = $1 OR p.sentry_project_id = $1)
   AND ($2 = 'all' OR i.status = $2)
   AND ($3 = '' OR i.level = $3)
   AND ($4 = '' OR i.environment = $4)

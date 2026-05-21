@@ -109,6 +109,7 @@ UI 使用 React Router 分层菜单，Axios 请求统一封装在 `ui/src/http.t
 - `worker-normalize` 消费 `events.raw`，执行基础标准化和 PII 清洗。
 - `worker-grouping` 消费 `events.normalized`，生成 fingerprint 并创建 / 更新 issue。
 - `worker-event-writer` 消费 `events.grouped`，写入 ClickHouse `sentry.events`。
+- `worker-transaction`、`worker-session`、`worker-attachment`、`worker-profile`、`worker-replay`、`worker-outcome` 分别消费 Sentry envelope 的对应 item 类型。
 - `worker-alert` 消费 `alerts.triggered`，按 webhook 规则发送告警并使用 Redis 抑制重复通知。
 - 提供项目管理和 DSN Key 管理 API，支持后台创建项目、启停项目、生成 / 启停上报 Key。
 - Docker API 镜像内置构建后的后台 UI，并由 API 服务托管 SPA 静态资源。
@@ -118,14 +119,15 @@ UI 使用 React Router 分层菜单，Axios 请求统一封装在 `ui/src/http.t
 本地初始化数据包含 demo 项目：
 
 ```text
-project_id: web
+sentry_project_id: 1
 public_key: demo-public-key
+dsn: http://demo-public-key@localhost:8080/1
 ```
 
 示例请求：
 
 ```bash
-curl -i http://localhost:8080/api/web/envelope \
+curl -i http://localhost:8080/api/1/envelope/ \
   -H "Content-Type: application/json" \
   -H "X-Sentry-Key: demo-public-key" \
   -H "X-SDK-Name: your-sdk-js" \
@@ -161,15 +163,15 @@ curl "http://localhost:8080/api/projects"
 curl -X POST "http://localhost:8080/api/projects" \
   -H "Content-Type: application/json" \
   -d '{"organization_slug":"demo","slug":"mobile","name":"Mobile App","platform":"javascript","sample_rate":1}'
-curl "http://localhost:8080/api/projects/web"
-curl -X PATCH "http://localhost:8080/api/projects/web" \
+curl "http://localhost:8080/api/projects/1"
+curl -X PATCH "http://localhost:8080/api/projects/1" \
   -H "Content-Type: application/json" \
   -d '{"name":"Web Frontend","platform":"javascript","sample_rate":0.8}'
-curl -X PATCH "http://localhost:8080/api/projects/web/status" \
+curl -X PATCH "http://localhost:8080/api/projects/1/status" \
   -H "Content-Type: application/json" \
   -d '{"status":"disabled"}'
-curl "http://localhost:8080/api/projects/web/keys"
-curl -X POST "http://localhost:8080/api/projects/web/keys" \
+curl "http://localhost:8080/api/projects/1/keys"
+curl -X POST "http://localhost:8080/api/projects/1/keys" \
   -H "Content-Type: application/json" \
   -d '{"name":"Browser SDK","rate_limit_per_minute":6000}'
 curl -X PATCH "http://localhost:8080/api/project-keys/{key_id}" \
@@ -178,22 +180,22 @@ curl -X PATCH "http://localhost:8080/api/project-keys/{key_id}" \
 curl -X PATCH "http://localhost:8080/api/project-keys/{key_id}/status" \
   -H "Content-Type: application/json" \
   -d '{"status":"disabled"}'
-curl "http://localhost:8080/api/projects/web/issues?status=unresolved"
-curl "http://localhost:8080/api/projects/web/events?limit=20"
+curl "http://localhost:8080/api/projects/1/issues?status=unresolved"
+curl "http://localhost:8080/api/projects/1/events?limit=20"
 curl "http://localhost:8080/api/issues/{issue_id}"
 curl "http://localhost:8080/api/events/{event_id}"
-curl "http://localhost:8080/api/projects/web/stats/trend"
-curl "http://localhost:8080/api/projects/web/stats/levels"
-curl "http://localhost:8080/api/projects/web/stats/top-issues"
-curl "http://localhost:8080/api/projects/web/stats/top-releases"
-curl "http://localhost:8080/api/projects/web/alerts"
-curl -X POST "http://localhost:8080/api/projects/web/alerts/webhook" \
+curl "http://localhost:8080/api/projects/1/stats/trend"
+curl "http://localhost:8080/api/projects/1/stats/levels"
+curl "http://localhost:8080/api/projects/1/stats/top-issues"
+curl "http://localhost:8080/api/projects/1/stats/top-releases"
+curl "http://localhost:8080/api/projects/1/alerts"
+curl -X POST "http://localhost:8080/api/projects/1/alerts/webhook" \
   -H "Content-Type: application/json" \
   -d '{"name":"New issue webhook","event_type":"new_issue","webhook_url":"https://example.com/webhook","min_level":"error","cooldown_seconds":300}'
-curl -X POST "http://localhost:8080/api/projects/web/alerts/webhook" \
+curl -X POST "http://localhost:8080/api/projects/1/alerts/webhook" \
   -H "Content-Type: application/json" \
   -d '{"name":"Frequency webhook","event_type":"frequency","webhook_url":"https://example.com/webhook","min_level":"error","threshold_count":10,"window_seconds":300,"cooldown_seconds":900}'
-curl "http://localhost:8080/api/projects/web/alert-deliveries?limit=20"
+curl "http://localhost:8080/api/projects/1/alert-deliveries?limit=20"
 curl -X PATCH "http://localhost:8080/api/alerts/{alert_id}/status" \
   -H "Content-Type: application/json" \
   -d '{"status":"disabled"}'

@@ -1,6 +1,6 @@
 param(
     [string]$BaseUrl = "http://localhost:8080",
-    [string]$ProjectId = "web",
+    [string]$ProjectId = "1",
     [string]$PublicKey = "demo-public-key",
     [string]$WebhookUrl = ""
 )
@@ -27,6 +27,24 @@ function Invoke-Json {
     Invoke-RestMethod @params
 }
 
+function Wait-Issues {
+    param(
+        [string]$Url,
+        [int]$TimeoutSeconds = 30
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $issues = Invoke-Json -Method GET -Url $Url
+        if (@($issues.items).Count -gt 0) {
+            return $issues
+        }
+        Start-Sleep -Seconds 2
+    }
+
+    throw "Smoke test did not observe any unresolved issue within $TimeoutSeconds seconds."
+}
+
 Write-Host "Checking API health..."
 Invoke-Json -Method GET -Url "$BaseUrl/healthz" | Out-Null
 Invoke-Json -Method GET -Url "$BaseUrl/readyz" | Out-Null
@@ -46,8 +64,8 @@ if ($WebhookUrl -ne "") {
 
 Write-Host "Sending two matching events..."
 for ($i = 1; $i -le 2; $i++) {
-    $eventId = [guid]::NewGuid().ToString()
-    Invoke-Json -Method POST -Url "$BaseUrl/api/$ProjectId/envelope" -Headers @{
+    $eventId = [guid]::NewGuid().ToString("N")
+    Invoke-Json -Method POST -Url "$BaseUrl/api/$ProjectId/envelope/" -Headers @{
         "X-Sentry-Key" = $PublicKey
         "X-SDK-Name" = "smoke-sdk"
         "X-SDK-Version" = "0.1.0"
@@ -83,10 +101,9 @@ for ($i = 1; $i -le 2; $i++) {
 }
 
 Write-Host "Waiting for workers..."
-Start-Sleep -Seconds 5
+$issues = Wait-Issues -Url "$BaseUrl/api/projects/$ProjectId/issues?status=unresolved&limit=10"
 
 Write-Host "Querying issues, events, stats, alerts..."
-$issues = Invoke-Json -Method GET -Url "$BaseUrl/api/projects/$ProjectId/issues?status=unresolved&limit=10"
 $events = Invoke-Json -Method GET -Url "$BaseUrl/api/projects/$ProjectId/events?limit=10"
 $trend = Invoke-Json -Method GET -Url "$BaseUrl/api/projects/$ProjectId/stats/trend"
 $alerts = Invoke-Json -Method GET -Url "$BaseUrl/api/projects/$ProjectId/alerts"

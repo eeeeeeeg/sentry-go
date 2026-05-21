@@ -10,6 +10,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$RuntimeServices = @(
+    "api",
+    "worker-normalize",
+    "worker-event-writer",
+    "worker-transaction",
+    "worker-grouping",
+    "worker-alert",
+    "worker-outcome",
+    "worker-session",
+    "worker-attachment",
+    "worker-profile",
+    "worker-replay"
+)
+
 function Invoke-Step {
     param(
         [string]$Name,
@@ -79,7 +93,7 @@ Invoke-Step "Starting stack" {
     if ($NoForceRecreate) {
         docker compose up -d
     } else {
-        docker compose up -d --force-recreate api worker-normalize worker-grouping worker-event-writer worker-alert
+        docker compose up -d --force-recreate @RuntimeServices
     }
 }
 
