@@ -5,6 +5,7 @@ import { Sidebar } from "./app/layout/Sidebar";
 import { Topbar } from "./app/layout/Topbar";
 import { AlertsPage } from "./pages/alerts/AlertsPage";
 import { EventsPage } from "./pages/events/EventsPage";
+import { IssueDetailsPage } from "./pages/issues/IssueDetailsPage";
 import { IssuesPage } from "./pages/issues/IssuesPage";
 import { OverviewPage } from "./pages/overview/OverviewPage";
 import { ProjectsPage } from "./pages/projects/ProjectsPage";
@@ -47,7 +48,16 @@ export function App() {
                 refreshKey={refreshKey}
                 onLoadingChange={handleLoadingChange}
                 onError={handleError}
-                openEvent={setSelectedEvent}
+              />
+            }
+          />
+          <Route
+            path="/issues/:issueId"
+            element={
+              <IssueDetailsPage
+                projectId={projectId}
+                onLoadingChange={handleLoadingChange}
+                onError={handleError}
               />
             }
           />

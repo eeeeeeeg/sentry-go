@@ -1,14 +1,12 @@
 import clsx from "clsx";
 import { CheckCircle2, CircleOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Empty } from "../../components/Empty";
-import { IssueDialog } from "../../components/IssueDialog";
 import { Pagination } from "../../components/Pagination";
 import { QueryFilters, type QueryFilterValues } from "../../components/QueryFilters";
 import { Button } from "../../components/ui";
 import { useIssues } from "../../hooks/useIssues";
-import { type EventItem } from "../../services/api";
 import { compactNumber, datetimeLocalToRFC3339, formatDate, levelClass } from "../../utils/format";
 
 const pageSize = 20;
@@ -28,7 +26,6 @@ export function IssuesPage({
   refreshKey,
   onLoadingChange,
   onError,
-  openEvent,
 }: {
   projectId: string;
   query: string;
@@ -37,10 +34,9 @@ export function IssuesPage({
   refreshKey: number;
   onLoadingChange: (loading: boolean) => void;
   onError: (error: string) => void;
-  openEvent: (event: EventItem) => void;
 }) {
   const [searchParams] = useSearchParams();
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [offset, setOffset] = useState(0);
   const [filters, setFilters] = useState<QueryFilterValues>(emptyFilters);
 
@@ -114,7 +110,7 @@ export function IssuesPage({
         </div>
         {filteredIssues.map((issue) => (
           <div key={issue.id} className="grid gap-3 border-t border-slate-100 px-4 py-3 md:grid-cols-[minmax(240px,1fr)_88px_80px_110px_126px_126px_96px] md:items-center">
-            <button className="min-w-0 text-left" onClick={() => setSelectedIssueId(issue.id)}>
+            <button className="min-w-0 text-left" onClick={() => navigate(`/issues/${issue.id}`)}>
               <div className="truncate font-medium text-slate-900">{issue.title}</div>
               <div className="truncate text-xs text-slate-500">{issue.culprit || issue.fingerprint}</div>
             </button>
@@ -137,7 +133,6 @@ export function IssuesPage({
       </div>
 
       <Pagination page={page} setOffset={setOffset} />
-      <IssueDialog issueId={selectedIssueId} projectId={projectId} close={() => setSelectedIssueId(null)} openEvent={openEvent} />
     </section>
   );
 }

@@ -72,7 +72,7 @@ func main() {
 			out.Header.Set("project-id", event.ProjectID)
 			out.Header.Set("event-id", event.EventID)
 			out.Header.Set("issue-id", event.IssueID)
-			out.Header.Set(nats.MsgIdHdr, event.EventID)
+			out.Header.Set(nats.MsgIdHdr, "grouped-"+event.EventID)
 			if _, err = deps.JetStream.PublishMsg(out); err != nil {
 				return err
 			}

@@ -33,6 +33,9 @@ func (h queryHandler) register(r chi.Router) {
 	r.Get("/api/projects/{project_id}/issues", h.listIssues)
 	r.Get("/api/issues/{issue_id}", h.getIssue)
 	r.Get("/api/issues/{issue_id}/status-changes", h.listIssueStatusChanges)
+	r.Get("/api/issues/{issue_id}/user-reports", h.listIssueUserReports)
+	r.Get("/api/issues/{issue_id}/comments", h.listIssueComments)
+	r.Get("/api/issues/{issue_id}/merged", h.listMergedIssues)
 	r.Patch("/api/issues/{issue_id}/status", h.updateIssueStatus)
 	r.Get("/api/projects/{project_id}/events", h.listEvents)
 	r.Get("/api/events/{event_id}", h.getEvent)
@@ -184,6 +187,18 @@ func (h queryHandler) listIssueStatusChanges(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h queryHandler) listIssueUserReports(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+}
+
+func (h queryHandler) listIssueComments(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+}
+
+func (h queryHandler) listMergedIssues(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
 }
 
 func (h queryHandler) listEvents(w http.ResponseWriter, r *http.Request) {

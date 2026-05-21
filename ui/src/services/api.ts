@@ -25,6 +25,22 @@ export type IssueStatusChange = {
   created_at: string;
 };
 
+export type EventNamedContext = {
+  name?: string;
+  version?: string;
+  family?: string;
+  data?: Record<string, unknown>;
+};
+
+export type EventBreadcrumb = {
+  timestamp?: string;
+  type?: string;
+  category?: string;
+  level?: string;
+  message?: string;
+  data?: Record<string, unknown>;
+};
+
 export type EventItem = {
   event_id: string;
   project_id: string;
@@ -42,6 +58,18 @@ export type EventItem = {
   tags: string;
   contexts: string;
   raw_event?: string;
+  runtime_name?: string;
+  runtime_version?: string;
+  sdk_name?: string;
+  sdk_version?: string;
+  browser?: EventNamedContext;
+  os?: EventNamedContext;
+  device?: EventNamedContext;
+  culture?: Record<string, unknown>;
+  trace?: Record<string, unknown>;
+  request?: Record<string, unknown>;
+  user?: Record<string, unknown>;
+  breadcrumbs?: EventBreadcrumb[];
 };
 
 export type TrendPoint = {
@@ -253,6 +281,21 @@ export async function getIssue(issueId: string): Promise<Issue> {
 
 export async function listIssueStatusChanges(issueId: string): Promise<IssueStatusChange[]> {
   const result = await request<ListResponse<IssueStatusChange>>({ method: "GET", url: `/api/issues/${issueId}/status-changes` });
+  return result.items ?? [];
+}
+
+export async function listIssueUserReports(issueId: string): Promise<unknown[]> {
+  const result = await request<ListResponse<unknown>>({ method: "GET", url: `/api/issues/${issueId}/user-reports` });
+  return result.items ?? [];
+}
+
+export async function listIssueComments(issueId: string): Promise<unknown[]> {
+  const result = await request<ListResponse<unknown>>({ method: "GET", url: `/api/issues/${issueId}/comments` });
+  return result.items ?? [];
+}
+
+export async function listMergedIssues(issueId: string): Promise<unknown[]> {
+  const result = await request<ListResponse<unknown>>({ method: "GET", url: `/api/issues/${issueId}/merged` });
   return result.items ?? [];
 }
 

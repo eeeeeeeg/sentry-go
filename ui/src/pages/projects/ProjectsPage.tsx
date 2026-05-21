@@ -1,11 +1,12 @@
 import { Dialog, DialogPanel, DialogTitle, Switch } from "@headlessui/react";
 import clsx from "clsx";
-import { BookOpen, Check, Copy, Edit3, KeyRound, Plus, Save, Search, Send, Settings2, X } from "lucide-react";
+import { BookOpen, Boxes, Check, Copy, Edit3, Globe2, KeyRound, Monitor, Plus, Save, Search, Send, Server, Settings2, Smartphone, Star, X } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Empty } from "../../components/Empty";
 import { Panel } from "../../components/Panel";
 import { useProjects } from "../../hooks/useProjects";
 import { sendTestEvent, type PageMeta, type Project, type ProjectKey } from "../../services/api";
+import { getPlatformCategory, getPlatformLabel, platformCategories, type PlatformCategoryId } from "../../services/platforms";
 import { formatDate } from "../../utils/format";
 
 const pageSize = 8;
@@ -121,7 +122,7 @@ export function ProjectsPage({
                         <span className="block truncate text-xs text-slate-500">Project ID {project.sentry_project_id} / {project.slug}</span>
                       </button>
                     </td>
-                    <td className="px-3 py-3 text-slate-600">{project.platform}</td>
+                    <td className="px-3 py-3 text-slate-600">{getPlatformLabel(project.platform)}</td>
                     <td className="px-3 py-3 text-slate-600">{project.sample_rate}</td>
                     <td className="px-3 py-3">
                       <StatusBadge status={project.status} />
@@ -174,7 +175,7 @@ export function ProjectsPage({
               <div className="grid gap-3">
                 <Metric label="Sentry Project ID" value={current.sentry_project_id} />
                 <Metric label="DSN Path" value={`/${current.sentry_project_id}`} />
-                <Metric label="平台" value={current.platform} />
+                <Metric label="平台" value={`${getPlatformLabel(current.platform)} / ${current.platform}`} />
                 <Metric label="采样率" value={String(current.sample_rate)} />
                 <Metric label="组织 ID" value={current.organization_id} />
                 <Metric label="创建时间" value={formatDate(current.created_at)} />
@@ -496,8 +497,21 @@ function ProjectDialog({
   close: () => void;
   submit: (form: FormData) => Promise<void>;
 }) {
+  const initialPlatform = project?.platform ?? "javascript";
+  const [selectedPlatform, setSelectedPlatform] = useState(initialPlatform);
+  const [activeCategory, setActiveCategory] = useState<PlatformCategoryId>(getPlatformCategory(initialPlatform));
+
+  useEffect(() => {
+    const nextPlatform = project?.platform ?? "javascript";
+    setSelectedPlatform(nextPlatform);
+    setActiveCategory(getPlatformCategory(nextPlatform));
+  }, [project?.platform]);
+
+  const activePlatformCategory = platformCategories.find((category) => category.id === activeCategory) ?? platformCategories[0];
+  const selectedPlatformLabel = getPlatformLabel(selectedPlatform);
+
   return (
-    <FormDialog open={Boolean(mode)} title={mode === "edit" ? "编辑项目" : "新建项目"} close={close}>
+    <FormDialog open={Boolean(mode)} title={mode === "edit" ? "编辑项目" : "新建项目"} close={close} wide>
       <form
         className="grid gap-3"
         onSubmit={(event) => {
@@ -508,12 +522,51 @@ function ProjectDialog({
         {mode === "create" && <input className="field" name="organization_slug" defaultValue="demo" placeholder="组织 slug" />}
         {mode === "create" && <input className="field" name="slug" placeholder="项目标识" required />}
         <input className="field" name="name" placeholder="项目名称" defaultValue={project?.name ?? ""} required />
-        <select className="field" name="platform" defaultValue={project?.platform ?? "javascript"}>
-          <option value="javascript">javascript</option>
-          <option value="go">go</option>
-          <option value="python">python</option>
-          <option value="java">java</option>
-        </select>
+        <input type="hidden" name="platform" value={selectedPlatform} />
+        <div className="grid gap-3 rounded-lg border border-slate-200 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">平台</div>
+              <div className="mt-1 text-xs text-slate-500">选择接入 SDK 的平台，保存为 Sentry platform slug。</div>
+            </div>
+            <div className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+              {selectedPlatformLabel}
+              <span className="ml-1 text-slate-400">/ {selectedPlatform}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {platformCategories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                className={clsx(
+                  "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition",
+                  activeCategory === category.id ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+                )}
+                onClick={() => setActiveCategory(category.id)}
+              >
+                <PlatformCategoryIcon category={category.id} />
+                {category.name}
+              </button>
+            ))}
+          </div>
+          <div className="grid max-h-72 gap-2 overflow-auto rounded-md border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
+            {activePlatformCategory.options.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={clsx(
+                  "min-w-0 rounded-md border bg-white px-3 py-2 text-left transition",
+                  selectedPlatform === option.id ? "border-blue-500 text-blue-700 shadow-sm ring-1 ring-blue-200" : "border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-white",
+                )}
+                onClick={() => setSelectedPlatform(option.id)}
+              >
+                <span className="block truncate text-sm font-semibold">{option.name}</span>
+                <span className="mt-1 block truncate text-xs text-slate-500">{option.id}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <input className="field" name="sample_rate" type="number" min="0" max="1" step="0.01" defaultValue={project?.sample_rate ?? 1} />
         <button className="btn-primary">
           <Save className="h-4 w-4" />
@@ -522,6 +575,23 @@ function ProjectDialog({
       </form>
     </FormDialog>
   );
+}
+
+function PlatformCategoryIcon({ category }: { category: PlatformCategoryId }) {
+  switch (category) {
+    case "popular":
+      return <Star className="h-4 w-4" />;
+    case "browser":
+      return <Globe2 className="h-4 w-4" />;
+    case "server":
+      return <Server className="h-4 w-4" />;
+    case "mobile":
+      return <Smartphone className="h-4 w-4" />;
+    case "desktop":
+      return <Monitor className="h-4 w-4" />;
+    default:
+      return <Boxes className="h-4 w-4" />;
+  }
 }
 
 function KeyDialog({
@@ -555,12 +625,12 @@ function KeyDialog({
   );
 }
 
-function FormDialog({ open, title, close, children }: { open: boolean; title: string; close: () => void; children: ReactNode }) {
+function FormDialog({ open, title, close, children, wide = false }: { open: boolean; title: string; close: () => void; children: ReactNode; wide?: boolean }) {
   return (
     <Dialog open={open} onClose={close} className="relative z-50">
       <div className="fixed inset-0 bg-slate-950/35" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
+        <DialogPanel className={clsx("w-full rounded-lg bg-white p-5 shadow-xl", wide ? "max-w-2xl" : "max-w-lg")}>
           <div className="mb-4 flex items-center justify-between gap-4">
             <DialogTitle className="text-lg font-semibold text-slate-900">{title}</DialogTitle>
             <button className="btn h-8 w-8 px-0" onClick={close} title="关闭">

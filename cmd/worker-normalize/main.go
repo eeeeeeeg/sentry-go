@@ -65,7 +65,7 @@ func main() {
 			out.Header.Set("content-type", "application/json")
 			out.Header.Set("project-id", normalized.ProjectID)
 			out.Header.Set("event-id", normalized.EventID)
-			out.Header.Set(nats.MsgIdHdr, normalized.EventID)
+			out.Header.Set(nats.MsgIdHdr, "normalized-"+normalized.EventID)
 			_, err = deps.JetStream.PublishMsg(out)
 			return err
 		},
