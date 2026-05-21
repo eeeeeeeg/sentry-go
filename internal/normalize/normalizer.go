@@ -41,7 +41,7 @@ func (n *Normalizer) Normalize(raw RawEventMessage) (NormalizedEvent, error) {
 	}
 
 	now := time.Now().UTC()
-	timestamp := env.Timestamp
+	timestamp := env.Timestamp.Time
 	if timestamp.IsZero() {
 		timestamp = raw.ReceivedAt
 	}

@@ -1,10 +1,16 @@
 package envelope
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
 
 type Envelope struct {
 	EventID     string            `json:"event_id"`
-	Timestamp   time.Time         `json:"timestamp"`
+	Timestamp   FlexibleTime      `json:"timestamp"`
 	Platform    string            `json:"platform"`
 	Runtime     Runtime           `json:"runtime"`
 	SDK         SDK               `json:"sdk"`
@@ -46,10 +52,88 @@ type StackFrame struct {
 }
 
 type Breadcrumb struct {
-	Timestamp time.Time      `json:"timestamp,omitempty"`
+	Timestamp FlexibleTime   `json:"timestamp,omitempty"`
 	Type      string         `json:"type,omitempty"`
 	Category  string         `json:"category,omitempty"`
 	Level     string         `json:"level,omitempty"`
 	Message   string         `json:"message,omitempty"`
 	Data      map[string]any `json:"data,omitempty"`
+}
+
+type FlexibleTime struct {
+	time.Time
+}
+
+func (t *FlexibleTime) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		t.Time = time.Time{}
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		parsed, err := parseFlexibleTimeString(text)
+		if err != nil {
+			return err
+		}
+		t.Time = parsed
+		return nil
+	}
+
+	if parsed, ok, err := parseNumericTimestamp(data); ok || err != nil {
+		if err != nil {
+			return err
+		}
+		t.Time = parsed
+		return nil
+	}
+
+	return fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+}
+
+func parseNumericTimestamp(data []byte) (time.Time, bool, error) {
+	text := strings.TrimSpace(string(data))
+	if text == "" || text[0] == '"' {
+		return time.Time{}, false, nil
+	}
+
+	parts := strings.SplitN(text, ".", 2)
+	seconds, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return time.Time{}, false, nil
+	}
+	if seconds < 0 {
+		return time.Time{}, true, fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+	}
+
+	var nanos int64
+	if len(parts) == 2 {
+		fraction := parts[1]
+		if len(fraction) > 9 {
+			fraction = fraction[:9]
+		}
+		for len(fraction) < 9 {
+			fraction += "0"
+		}
+		nanos, err = strconv.ParseInt(fraction, 10, 64)
+		if err != nil {
+			return time.Time{}, true, fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+		}
+	}
+
+	return time.Unix(seconds, nanos).UTC(), true, nil
+}
+
+func parseFlexibleTimeString(value string) (time.Time, error) {
+	if value == "" {
+		return time.Time{}, nil
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return parsed.UTC(), nil
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+	}
+	return parsed.UTC(), nil
 }

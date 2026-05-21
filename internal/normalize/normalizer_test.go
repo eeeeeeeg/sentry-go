@@ -42,3 +42,27 @@ func TestNormalizeSentrySDKExceptionValues(t *testing.T) {
 		t.Fatalf("Message = %q", got.Message)
 	}
 }
+
+func TestNormalizeNumericTimestamp(t *testing.T) {
+	raw := RawEventMessage{
+		ReceivedAt:     time.Date(2026, 5, 18, 10, 0, 0, 0, time.UTC),
+		OrganizationID: "org-1",
+		ProjectID:      "project-1",
+		ProjectKeyID:   "key-1",
+		Payload: json.RawMessage(`{
+			"event_id": "018f3a8b42147c9fb2f57b7a7f534102",
+			"timestamp": 1779098400.123,
+			"platform": "javascript",
+			"message": "numeric timestamp"
+		}`),
+	}
+
+	got, err := NewNormalizer().Normalize(raw)
+	if err != nil {
+		t.Fatalf("Normalize() error = %v", err)
+	}
+	want := time.Unix(1779098400, 123000000).UTC()
+	if !got.Timestamp.Equal(want) {
+		t.Fatalf("Timestamp = %s, want %s", got.Timestamp, want)
+	}
+}

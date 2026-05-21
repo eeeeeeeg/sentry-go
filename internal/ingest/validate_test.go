@@ -16,6 +16,20 @@ func TestValidatePayloadAcceptsMessageEvent(t *testing.T) {
 	}
 }
 
+func TestValidatePayloadAcceptsNumericTimestamp(t *testing.T) {
+	body := []byte(`{
+		"event_id": "018f3a8b42147c9fb2f57b7a7f534101",
+		"timestamp": 1779098400.123,
+		"level": "error",
+		"message": "Cannot read properties of undefined",
+		"platform": "javascript"
+	}`)
+
+	if err := validatePayload(body); err != nil {
+		t.Fatalf("validatePayload() error = %v", err)
+	}
+}
+
 func TestValidatePayloadAcceptsExceptionEvent(t *testing.T) {
 	body := []byte(`{
 		"level": "fatal",

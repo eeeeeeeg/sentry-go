@@ -43,14 +43,8 @@ func validatePayload(body []byte) error {
 	}
 
 	if rawTimestamp, ok := payload["timestamp"]; ok {
-		timestamp, ok := rawTimestamp.(string)
-		if !ok {
-			return fmt.Errorf("timestamp must be an RFC3339 string")
-		}
-		if _, err := time.Parse(time.RFC3339, timestamp); err != nil {
-			if _, err64 := time.Parse(time.RFC3339Nano, timestamp); err64 != nil {
-				return fmt.Errorf("timestamp must be an RFC3339 string")
-			}
+		if err := validateTimestamp(rawTimestamp); err != nil {
+			return err
 		}
 	}
 
@@ -109,6 +103,25 @@ func validatePayload(body []byte) error {
 	}
 
 	return nil
+}
+
+func validateTimestamp(value any) error {
+	switch typed := value.(type) {
+	case string:
+		if _, err := time.Parse(time.RFC3339, typed); err != nil {
+			if _, err64 := time.Parse(time.RFC3339Nano, typed); err64 != nil {
+				return fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+			}
+		}
+		return nil
+	case float64:
+		if typed < 0 {
+			return fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+		}
+		return nil
+	default:
+		return fmt.Errorf("timestamp must be an RFC3339 string or Unix timestamp number")
+	}
 }
 
 func hasExceptionSummary(exception map[string]any) bool {
